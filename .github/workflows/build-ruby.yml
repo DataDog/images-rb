@@ -1,0 +1,119 @@
+name: Build Ruby
+
+on:
+  workflow_dispatch:
+    inputs:
+      push:
+        description: Push images
+        required: true
+        type: boolean
+        default: true
+  push:
+    branches:
+      - "**"
+
+env:
+  REGISTRY: ghcr.io
+  REPO: datadog/images-rb
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - engine: ruby
+            version: "2.1"
+          - engine: ruby
+            version: "2.2"
+          - engine: ruby
+            version: "2.3"
+          - engine: ruby
+            version: "2.4"
+          - engine: ruby
+            version: "2.5"
+          - engine: ruby
+            version: "2.6"
+          - engine: ruby
+            version: "2.7"
+          - engine: ruby
+            version: "3.0"
+          - engine: ruby
+            version: "3.1"
+          - engine: ruby
+            version: "3.2"
+          - engine: ruby
+            version: "3.3"
+          - engine: ruby
+            version: "3.4"
+          - engine: jruby
+            version: "9.2"
+          - engine: jruby
+            version: "9.3"
+          - engine: jruby
+            version: "9.4"
+    runs-on: ubuntu-latest
+    name: Build (${{ matrix.engine }} ${{ matrix.version }})
+    steps:
+      - name: Set variables
+        id: vars
+        run: |
+          echo "SRC=src/engines/${{ matrix.engine }}/${{ matrix.version }}" >> $GITHUB_OUTPUT
+          echo "IMAGE=${{ env.REGISTRY }}/${{ env.REPO }}/engines/${{ matrix.engine }}" >> $GITHUB_OUTPUT
+          echo "TAG=${{ matrix.version }}" >> $GITHUB_OUTPUT
+          echo "DOCKERFILE=src/engines/${{ matrix.engine }}/${{ matrix.version }}/Dockerfile" >> $GITHUB_OUTPUT
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Using docker-container engine enables advanced buildx features
+      - name: Set up Docker container engine
+        run: |
+          docker buildx create --name=container --driver=docker-container --use --bootstrap
+
+      # First, build image for x86_64 as it will fail fast
+      #
+      # Tagging is necessary to reference the image for the testing step
+      # Tagging is done separately to avoid interfrence with caching
+      - name: Build single-arch image (x86_64)
+        run: |
+          docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} --output=type=image,push=false --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }}
+      - name: Tag single-arch image (x86_64)
+        run: |
+          docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} --load --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
+      - name: Test single-arch image (x86_64)
+        run: |
+          docker run --platform linux/x86_64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} ruby -e 'puts RUBY_DESCRIPTION'
+          docker run --platform linux/x86_64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} gem --version
+          docker run --platform linux/x86_64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} bundle --version
+
+      # Then, build image for aarch64 which, being emulated under qemu, is slower
+      #
+      # Tagging is necessary to reference the image for the testing step
+      # Tagging is done separately to avoid interfrence with caching
+      # Start by enabling qemu for aarch64
+      - name: Enable aarch64 emulation (x86_64)
+        run: |
+          docker run --privileged --rm tonistiigi/binfmt --install arm64
+      - name: Build single-arch image (aarch64)
+        run: |
+          docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} --output=type=image,push=false --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }}
+      - name: Tag single-arch image (aarch64)
+        run: |
+          docker buildx build ${{ steps.vars.outputs.SRC }}  --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} --load --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
+      - name: Test single-arch image (aarch64)
+        run: |
+          docker run --platform linux/aarch64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} ruby -e 'puts RUBY_DESCRIPTION'
+          docker run --platform linux/aarch64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} gem --version
+          docker run --platform linux/aarch64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} bundle --version
+
+      # Finally, assemble multi-arch image for a combined push to the registry
+      #
+      # This reruns docker build but layers are in the cache, so it's fast
+      - name: Log in to the Container Registry
+        if: ${{ inputs.push }}
+        run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+      - name: Build multi-arch image (x86_64, aarch64)
+        if: ${{ inputs.push }}
+        run: |
+          docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform linux/x86_64,linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
