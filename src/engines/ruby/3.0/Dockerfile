@@ -1,68 +1,62 @@
-# Note: See the "Publishing updates to images" note in ./README.md for how to publish new builds of this container image
-
 FROM ruby:3.0.7-bullseye
 
-# Make apt non-interactive
-RUN echo 'APT::Get::Assume-Yes "true";' > /etc/apt/apt.conf.d/90circleci \
-  && echo 'DPkg::Options "--force-confnew";' >> /etc/apt/apt.conf.d/90circleci
+# A few RUN actions in Dockerfiles are subject to uncontrollable outside
+# variability: an identical command would be the same from `docker build`'s
+# point of view but does not indicate the result would be identical at
+# different points in time.
+#
+# This causes two possible issues:
+#
+# - one wants to capture a new state and so wants the identical
+#   non-reproducible command to produce a new result. This could be achieved
+#   with --no-cache but this affects every single operation in a Dockerfile
+# - one wants to identify a specific state and leverage caching at that
+#   specific state.
+#
+# To that end a BUILD_ARG is introduced to capture an arbitrary identifier of
+# that state (typically time) that is introduced in non-reproducible commands
+# to make them appear different to Docker.
+#
+# Of course it only works when caching data is available: two independent
+# builds with the same value and no cache shared would produce different
+# results.
+ARG REPRO_RUN_KEY=0
 
-ENV DEBIAN_FRONTEND=noninteractive
+# `apt-get update` is uncontrolled and fetches whatever is today's index.
+# For the sake of reproducibility subsequent steps (including in dependent
+# images) should not do `apt-get update`, instead this base image should be
+# updated by changing the `REPRO_RUN_KEY`.
+RUN true "${REPRO_RUN_KEY}" && apt-get update
 
-# Install required packages
-RUN set -ex; \
-        apt-get update; \
-        mkdir -p /usr/share/man/man1; \
-        apt-get install -y --no-install-recommends \
-            git mercurial xvfb \
-            locales sudo openssh-client ca-certificates tar gzip parallel \
-            net-tools netcat unzip zip bzip2 gnupg curl wget \
-            tzdata rsync vim less jq; \
-        rm -rf /var/lib/apt/lists/*;
+# Install system dependencies for building
+RUN apt-get install -y libc6-dev build-essential locales tzdata --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
-# Set timezone to UTC by default
-RUN ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime
-
-# Set language
+# Ensure sane locale
 RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 
-# Install Docker
-RUN set -ex \
-  && export DOCKER_VERSION=$(curl --silent --fail --retry 3 https://download.docker.com/linux/static/stable/$(arch)/ | grep -o -e 'docker-[.0-9]*-ce\.tgz' | sort -r | head -n 1) \
-  && DOCKER_URL="https://download.docker.com/linux/static/stable/$(arch)/${DOCKER_VERSION}" \
-  && echo DOCKER_URL: $DOCKER_URL \
-  && curl --silent --show-error --location --fail --retry 3 --output /tmp/docker.tgz "${DOCKER_URL}" \
-  && ls -lha /tmp/docker.tgz \
-  && tar -xz -C /tmp -f /tmp/docker.tgz \
-  && mv /tmp/docker/* /usr/bin \
-  && rm -rf /tmp/docker /tmp/docker.tgz \
-  && which docker \
-  && (docker version || true)
+# Ensure consistent timezone
+RUN ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime
 
-# Install Docker Compose
-RUN COMPOSE_URL="https://github.com/linuxserver/docker-docker-compose/releases/download/1.29.2-ls51/docker-compose-$(dpkg --print-architecture)" \
-  && echo COMPOSE_URL: $COMPOSE_URL \
-  && curl --silent --show-error --location --fail --retry 3 --output /usr/bin/docker-compose $COMPOSE_URL \
-  && chmod +x /usr/bin/docker-compose \
-  && docker-compose version
+# Install things at a specific path and create ".bundle" in there as well:
+# This prevents pollution of an app volume and makes the bundle path mountable
+# as a volume as well.
+ENV GEM_HOME /usr/local/bundle
+ENV BUNDLE_BIN="$GEM_HOME/bin" \
+    BUNDLE_SILENCE_ROOT_WARNING=1 \
+    BUNDLE_APP_CONFIG="$GEM_HOME"
+ENV PATH $BUNDLE_BIN:$PATH
+RUN mkdir -p "$GEM_HOME" "$BUNDLE_BIN" \
+ && chmod 777 "$GEM_HOME" "$BUNDLE_BIN"
 
-# Install Dockerize
-RUN DOCKERIZE_URL="https://github.com/powerman/dockerize/releases/download/v0.17.0/dockerize-$(uname -s | tr '[:upper:]' '[:lower:]')-$(arch | sed 's/aarch64/arm64/')" \
-  && echo DOCKERIZE_URL: $DOCKERIZE_URL \
-  && curl --silent --show-error --location --fail --retry 3 --output /usr/local/bin/dockerize $DOCKERIZE_URL \
-  && chmod +x /usr/local/bin/dockerize \
-  && dockerize --version
-
-# Install RubyGems
-RUN mkdir -p "$GEM_HOME" && chmod -R 777 "$GEM_HOME"
-
-# Upgrade RubyGems and Bundler
+## Install a pinned RubyGems and Bundler
 RUN gem update --system 3.3.26
-RUN gem install bundler -v '~> 2.3.26'
-ENV BUNDLE_SILENCE_ROOT_WARNING 1
+RUN gem install bundler:2.3.26
 
-RUN mkdir /app
-WORKDIR /app
+# Install additional gems that are in CRuby but missing from the above
+# JRuby install distribution. These are version-pinned for reproducibility.
+RUN gem install rake:13.2.1
 
-CMD ["/bin/sh"]
+# Start IRB as a default
+CMD [ "irb" ]
