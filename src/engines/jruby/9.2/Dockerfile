@@ -31,8 +31,7 @@ RUN true "${REPRO_RUN_KEY}" && apt-get update
 # Install system dependencies for building
 RUN apt-get install -y libc6-dev build-essential git locales tzdata --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
-# Ensure sane locale
-RUN locale-gen en_US.UTF-8
+# Ensure sane locale (`eclipse-temurin` already updated `/etc/locale.gen` for `en_US.UTF-8`)
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 
