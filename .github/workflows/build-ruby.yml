@@ -82,9 +82,11 @@ jobs:
           docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} --load --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
       - name: Test single-arch image (x86_64)
         run: |
+          docker run --platform linux/x86_64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} /bin/sh -c 'true'
           docker run --platform linux/x86_64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} ruby -e 'puts RUBY_DESCRIPTION'
           docker run --platform linux/x86_64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} gem --version
           docker run --platform linux/x86_64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} bundle --version
+          docker run --platform linux/x86_64 --rm -v "${PWD}":"${PWD}" -w "${PWD}" ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} /bin/sh -c 'bundle install && ruby test/engines/test_encoding.rb'
 
       # Then, build image for aarch64 which, being emulated under qemu, is slower
       #
@@ -102,9 +104,11 @@ jobs:
           docker buildx build ${{ steps.vars.outputs.SRC }}  --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} --load --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
       - name: Test single-arch image (aarch64)
         run: |
+          docker run --platform linux/aarch64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} /bin/sh -c 'true'
           docker run --platform linux/aarch64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} ruby -e 'puts RUBY_DESCRIPTION'
           docker run --platform linux/aarch64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} gem --version
           docker run --platform linux/aarch64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} bundle --version
+          docker run --platform linux/aarch64 --rm -v "${PWD}":"${PWD}" -w "${PWD}" ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} /bin/sh -c 'bundle install && ruby test/engines/test_encoding.rb'
 
       # Finally, assemble multi-arch image for a combined push to the registry
       #
