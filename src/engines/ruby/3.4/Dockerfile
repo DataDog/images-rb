@@ -1,4 +1,4 @@
-FROM ruby:3.4.0-preview1-bookworm
+FROM ruby:3.4.0-preview2
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
 # variability: an identical command would be the same from `docker build`'s
