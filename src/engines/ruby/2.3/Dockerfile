@@ -26,6 +26,9 @@ RUN echo "deb [trusted=yes] http://archive.debian.org/debian/ stretch main contr
 # results.
 ARG REPRO_RUN_KEY=0
 
+# Configure apt retries to improve automation reliability
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
+
 # `apt-get update` is uncontrolled and fetches whatever is today's index.
 # For the sake of reproducibility subsequent steps (including in dependent
 # images) should not do `apt-get update`, instead this base image should be
