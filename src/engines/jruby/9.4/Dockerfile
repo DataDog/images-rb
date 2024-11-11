@@ -22,6 +22,9 @@ FROM eclipse-temurin:11-jammy AS jruby-9.4.7.0-jre11
 # results.
 ARG REPRO_RUN_KEY=0
 
+# Configure apt retries to improve automation reliability
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
+
 # `apt-get update` is uncontrolled and fetches whatever is today's index.
 # For the sake of reproducibility subsequent steps (including in dependent
 # images) should not do `apt-get update`, instead this base image should be
