@@ -215,9 +215,11 @@ jobs:
       #
       # This reruns docker build but layers are in the cache, so it's fast
       - name: Log in to the Container Registry
-        if: ${{ inputs.push }}
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+      - name: Push CI run image (${{ join(matrix.arch, ', ') }})
+        run: |
+          docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }} --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
       - name: Push release image (${{ join(matrix.arch, ', ') }})
         if: ${{ inputs.push }}
         run: |
