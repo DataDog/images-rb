@@ -191,9 +191,11 @@ jobs:
         if: ${{ contains(matrix.arch, 'x86_64') }}
         run: |
           docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }} --load --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}
+          docker image list
       - name: Build single-arch compiler image (x86_64)
         if: ${{ contains(matrix.arch, 'x86_64') && matrix.libc == 'musl' }}
         run: |
+          docker image list
           docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc --output=type=image,push=false --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc
       # TODO: add CI tag and test
 
