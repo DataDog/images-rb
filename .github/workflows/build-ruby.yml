@@ -196,7 +196,8 @@ jobs:
         run: |
           echo "SRC=src/engines/${{ matrix.engine }}/${{ matrix.version }}" >> $GITHUB_OUTPUT
           echo "IMAGE=${{ env.REGISTRY }}/${{ env.REPO }}/engines/${{ matrix.engine }}" >> $GITHUB_OUTPUT
-          echo "TAG=${{ matrix.version }}-${{ matrix.libc }}" >> $GITHUB_OUTPUT
+          echo "RELEASE_TAG=${{ matrix.version }}-${{ matrix.libc }}" >> $GITHUB_OUTPUT
+          echo "TAG=${{ matrix.version }}-${{ matrix.libc }}-gha${{ github.run_id }}-g${{ github.sha }}" >> $GITHUB_OUTPUT
           echo "DOCKERFILE=src/engines/${{ matrix.engine }}/${{ matrix.version }}/Dockerfile.${{ matrix.libc }}" >> $GITHUB_OUTPUT
       - name: Checkout
         uses: actions/checkout@v4
@@ -212,10 +213,10 @@ jobs:
       # Tagging is done separately to avoid interfrence with caching
       - name: Build single-arch image (x86_64)
         run: |
-          docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} --output=type=image,push=false --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }} --output=type=image,push=false --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }}
       - name: Tag single-arch image (x86_64)
         run: |
-          docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} --load --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }} --load --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
       - name: Test single-arch image (x86_64)
         run: |
           docker run --platform linux/x86_64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} /bin/sh -c 'true'
@@ -236,11 +237,11 @@ jobs:
       - name: Build single-arch image (aarch64)
         if: ${{ contains(matrix.arch, 'aarch64') }}
         run: |
-          docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} --output=type=image,push=false --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }} --output=type=image,push=false --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }}
       - name: Tag single-arch image (aarch64)
         if: ${{ contains(matrix.arch, 'aarch64') }}
         run: |
-          docker buildx build ${{ steps.vars.outputs.SRC }}  --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} --load --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
+          docker buildx build ${{ steps.vars.outputs.SRC }}  --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }} --load --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
       - name: Test single-arch image (aarch64)
         if: ${{ contains(matrix.arch, 'aarch64') }}
         run: |
@@ -260,4 +261,4 @@ jobs:
       - name: Build multi-arch image (x86_64, aarch64)
         if: ${{ inputs.push }}
         run: |
-          docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform linux/x86_64,linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }} --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform linux/x86_64,linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}
