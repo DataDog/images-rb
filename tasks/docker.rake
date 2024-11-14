@@ -239,6 +239,7 @@ namespace :docker do
 
     image = target[:image]
     tag = target[:tag]
+    platform = docker_platform
 
     exec "docker run --rm -it --platform #{platform} -v #{Dir.pwd}:#{Dir.pwd} -w #{Dir.pwd} #{image}:#{tag} irb"
   end
