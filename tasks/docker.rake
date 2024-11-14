@@ -18,14 +18,41 @@ namespace :docker do
       image = "#{repository}/#{File.dirname(f.sub(/^src\//, "").sub(/\/Dockerfile(.*)/, ""))}"
       tag = f.sub(/.*\/(\d+(?:\.\d+))+\//, "\\1").sub(/Dockerfile(.*)$/) { |m| m.sub("Dockerfile", "").tr(".", "-") }
 
-      {
-        dockerfile: dockerfile,
-        context: context,
-        image: image, # TODO: rename to repository
-        tag: tag
-        # TODO: rename to image/tag/tagged_image/name/alias: "#{repo}:#{tag}"
-      }
-    end
+      targets = [
+        {
+          dockerfile: dockerfile,
+          context: context,
+          image: image, # TODO: rename to repository
+          tag: tag
+          # TODO: rename to image/tag/tagged_image/name/alias: "#{repo}:#{tag}"
+        }
+      ]
+
+      strip_tags = File.read(dockerfile).lines.select { |l| l =~ /^\s*#\s*strip-tags:/ }.map { |l| l =~ /strip-tags: (.*)/ && $1 }
+      if strip_tags.any?
+        stripped_tag = strip_tags.each_with_object(tag.dup) { |t, r| r.gsub!(/-#{t}/, "") }
+        targets << {
+          dockerfile: dockerfile,
+          context: context,
+          image: image,
+          tag: stripped_tag
+        }
+      end
+
+      append_tags = File.read(dockerfile).lines.select { |l| l =~ /^\s*#\s*append-tags:/ }.map { |l| l =~ /append-tags: (.*)/ && $1 }
+      if append_tags.any?
+        append_tags.each do |t|
+          targets << {
+            dockerfile: dockerfile,
+            context: context,
+            image: image,
+            tag: "#{tag}-#{t}"
+          }
+        end
+      end
+
+      targets
+    end.flatten
   end
 
   def dependencies

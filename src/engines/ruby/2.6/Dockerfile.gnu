@@ -1,3 +1,6 @@
+# strip-tags: gnu
+# append-tags: gcc
+
 FROM ruby:2.6.10-bullseye
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside

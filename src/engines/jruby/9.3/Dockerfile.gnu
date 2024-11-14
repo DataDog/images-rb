@@ -1,3 +1,6 @@
+# strip-tags: gnu
+# append-tags: gcc
+
 FROM eclipse-temurin:11-jammy AS jruby-9.3.9.0-jre11
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside

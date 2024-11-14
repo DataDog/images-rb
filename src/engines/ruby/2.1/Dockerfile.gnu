@@ -1,3 +1,6 @@
+# strip-tags: gnu
+# append-tags: gcc
+
 # ruby:2.1.10 was based on jessie, but never got a aarch64 image
 # aarch64 used to be supported upon release but is not part of LTS, so archive.debian.org does not contain aarch64: https://www.debian.org/releases/jessie/
 

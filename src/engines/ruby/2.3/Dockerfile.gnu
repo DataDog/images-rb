@@ -1,3 +1,6 @@
+# strip-tags: gnu
+# append-tags: gcc
+
 # Last version: https://github.com/docker-library/ruby/blob/31f66490fdb837ddcc5896e3275f2188f2b7b6dd/2.3/stretch/Dockerfile
 FROM ruby:2.3.8-stretch
 
