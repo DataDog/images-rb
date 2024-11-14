@@ -199,6 +199,7 @@ jobs:
           echo "RELEASE_TAG=${{ matrix.version }}-${{ matrix.libc }}" >> $GITHUB_OUTPUT
           echo "TAG=${{ matrix.version }}-${{ matrix.libc }}-gha${{ github.run_id }}-g${{ github.sha }}" >> $GITHUB_OUTPUT
           echo "DOCKERFILE=src/engines/${{ matrix.engine }}/${{ matrix.version }}/Dockerfile.${{ matrix.libc }}" >> $GITHUB_OUTPUT
+          echo "DOCKER_PLATFORMS=$(echo ${{ join(matrix.arch) }} | tr ',' '\n' | sed 's/^/linux\//' | paste -s -d, -)" >> $GITHUB_OUTPUT
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -212,12 +213,15 @@ jobs:
       # Tagging is necessary to reference the image for the testing step
       # Tagging is done separately to avoid interfrence with caching
       - name: Build single-arch image (x86_64)
+        if: ${{ contains(matrix.arch, 'x86_64') }}
         run: |
           docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }} --output=type=image,push=false --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }}
       - name: Tag single-arch image (x86_64)
+        if: ${{ contains(matrix.arch, 'x86_64') }}
         run: |
           docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }} --load --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
       - name: Test single-arch image (x86_64)
+        if: ${{ contains(matrix.arch, 'x86_64') }}
         run: |
           docker run --platform linux/x86_64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} /bin/sh -c 'true'
           docker run --platform linux/x86_64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} ruby -e 'puts RUBY_DESCRIPTION'
@@ -255,10 +259,10 @@ jobs:
       #
       # This reruns docker build but layers are in the cache, so it's fast
       - name: Log in to the Container Registry
-        if: ${{ inputs.push && contains(matrix.arch, 'aarch64') }}
-        run: |
-          echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
-      - name: Build multi-arch image (x86_64, aarch64)
         if: ${{ inputs.push }}
         run: |
-          docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }} --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform linux/x86_64,linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+      - name: Push release image (${{ join(matrix.arch, ', ') }})
+        if: ${{ inputs.push }}
+        run: |
+          docker buildx build ${{ steps.vars.outputs.SRC }} --builder=container --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }} --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}
