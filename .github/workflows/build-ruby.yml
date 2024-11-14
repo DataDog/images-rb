@@ -183,7 +183,7 @@ jobs:
           docker run --platform linux/x86_64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} ruby -e 'puts RUBY_DESCRIPTION'
           docker run --platform linux/x86_64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} gem --version
           docker run --platform linux/x86_64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} bundle --version
-          docker run --platform linux/x86_64 --rm -v "${PWD}":"${PWD}" -w "${PWD}" -e BUNDLE_GEMFILE=gemfiles/${{ matrix.engine }}-${{ matrix.version }}.gemfile ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} /bin/sh -c 'bundle install && bundle exec rake test'
+          docker run --platform linux/x86_64 --rm -v "${PWD}":"${PWD}" -w "${PWD}" -e BUNDLE_GEMFILE=gemfiles/${{ matrix.engine }}-${{ matrix.version }}.gemfile ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} /bin/sh -c 'bundle install --with="test" --without="check ide" && bundle exec rake test'
 
       # Then, build image for aarch64 which, being emulated under qemu, is slower
       #
@@ -209,7 +209,7 @@ jobs:
           docker run --platform linux/aarch64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} ruby -e 'puts RUBY_DESCRIPTION'
           docker run --platform linux/aarch64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} gem --version
           docker run --platform linux/aarch64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} bundle --version
-          docker run --platform linux/aarch64 --rm -v "${PWD}":"${PWD}" -w "${PWD}" -e BUNDLE_GEMFILE=gemfiles/${{ matrix.engine }}-${{ matrix.version }}.gemfile ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} /bin/sh -c 'bundle install && bundle exec rake test'
+          docker run --platform linux/aarch64 --rm -v "${PWD}":"${PWD}" -w "${PWD}" -e BUNDLE_GEMFILE=gemfiles/${{ matrix.engine }}-${{ matrix.version }}.gemfile ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} /bin/sh -c 'bundle install --with="test" --without="check ide" && bundle exec rake test'
 
       # Finally, assemble multi-arch image for a combined push to the registry
       #
