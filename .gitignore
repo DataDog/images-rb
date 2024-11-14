@@ -2,3 +2,4 @@
 /.direnv
 /vendor/bundle
 /Gemfile.lock
+/gemfiles/*.gemfile.lock
