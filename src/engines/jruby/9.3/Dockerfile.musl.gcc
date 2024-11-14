@@ -1,0 +1,3 @@
+FROM ghcr.io/datadog/images-rb/engines/jruby:9.3-musl
+
+RUN apk add binutils file fortify-headers make musl-dev gcc g++

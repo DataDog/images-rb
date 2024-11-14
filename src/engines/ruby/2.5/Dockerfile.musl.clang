@@ -1,0 +1,3 @@
+FROM ghcr.io/datadog/images-rb/engines/ruby:2.5-musl
+
+RUN apk add binutils file fortify-headers make musl-dev clang
