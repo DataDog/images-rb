@@ -28,3 +28,11 @@ ARG REPRO_RUN_KEY=0
 # images) should not do `apk update`, instead this base image should be
 # updated by changing the `REPRO_RUN_KEY`.
 RUN true "${REPRO_RUN_KEY}" && apk update
+
+## Install a pinned RubyGems and Bundler
+RUN gem update --system 2.7.11
+RUN gem install bundler --version 1.17.3
+
+# Install additional gems that are in CRuby but missing from the above
+# JRuby install distribution. These are version-pinned for reproducibility.
+RUN gem install rake:13.0.6
