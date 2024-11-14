@@ -1,18 +1,4 @@
-source "https://rubygems.org"
+# frozen_string_literal: true
 
-gem "rake"
-
-group :test do
-  gem "minitest"
-end
-
-group :check do
-  gem "standard"
-  gem "rubocop"
-  gem "rubocop-rake"
-  gem "rubocop-minitest"
-end
-
-group :ide do
-  gem "ruby-lsp"
-end
+gemfile = "#{RUBY_ENGINE}-#{RUBY_ENGINE_VERSION.split(".").take(2).join(".")}.gemfile"
+eval_gemfile "gemfiles/#{gemfile}"
