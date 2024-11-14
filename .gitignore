@@ -1,3 +1,4 @@
 /.envrc
+/.direnv
 /vendor/bundle
 /Gemfile.lock
