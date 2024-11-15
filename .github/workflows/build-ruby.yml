@@ -147,6 +147,15 @@ jobs:
     runs-on: ubuntu-latest
     name: Build (${{ matrix.engine }} ${{ matrix.version }} ${{ matrix.libc }})
     steps:
+      - name: Set up Docker
+        uses: crazy-max/ghaction-setup-docker@v3
+        with:
+          daemon-config: |
+            {
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }
       - name: Set variables
         id: vars
         run: |
