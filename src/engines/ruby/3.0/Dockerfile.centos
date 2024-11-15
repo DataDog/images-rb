@@ -1,0 +1,122 @@
+# CentOS 7.9 has glibc 2.17
+FROM public.ecr.aws/docker/library/centos:centos7.9.2009
+
+# Set yum vault
+RUN <<SHELL
+set -euxo pipefail
+
+if [ "$(uname -m)" != "x86_64" ]; then
+    repo_version="altarch/7.9.2009"
+else
+    repo_version="7.9.2009"
+fi
+
+cat <<EOF > /etc/yum.repos.d/CentOS-Base.repo
+[base]
+name=CentOS-\$releasever - Base
+baseurl=http://vault.centos.org/${repo_version}/os/\$basearch/
+gpgcheck=0
+
+[updates]
+name=CentOS-\$releasever - Updates
+baseurl=http://vault.centos.org/${repo_version}/updates/\$basearch/
+gpgcheck=0
+
+[extras]
+name=CentOS-\$releasever - Extras
+baseurl=http://vault.centos.org/${repo_version}/extras/\$basearch/
+gpgcheck=0
+
+[centosplus]
+name=CentOS-\$releasever - Plus
+baseurl=http://vault.centos.org/${repo_version}/centosplus/\$basearch/
+gpgcheck=0
+enabled=0
+EOF
+SHELL
+
+RUN yum update -y
+
+RUN yum install -y curl gcc make
+
+# Skip installing gem documentation
+COPY <<GEMRC /usr/local/etc/gemrc
+install: --no-document
+update: --no-document
+GEMRC
+
+ENV LANG="C.UTF-8"                                                                          \
+    RUBY_MAJOR="3.0"                                                                        \
+    RUBY_VERSION="3.0.6"                                                                    \
+    RUBY_DOWNLOAD_SHA256="b5cbee93e62d85cfb2a408c49fa30a74231ae8409c2b3858e5f5ea254d7ddbd1"
+
+# - Compile Ruby with `--disable-shared`
+# - Update gem version
+
+RUN <<SHELL
+set -euxo pipefail
+
+yum install -y autoconf bison gdbm-devel openssl-devel
+
+curl -o ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz"
+echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.xz" | sha256sum --check --strict
+mkdir -p /usr/src/ruby
+tar -xJf ruby.tar.xz -C /usr/src/ruby --strip-components=1
+rm ruby.tar.xz
+
+cd /usr/src/ruby
+
+# hack in "ENABLE_PATH_CHECK" disabling to suppress:
+#   warning: Insecure world writable dir
+{
+    echo '#define ENABLE_PATH_CHECK 0'
+    echo
+    cat file.c
+} > file.c.new
+mv file.c.new file.c
+
+autoconf
+
+gnuArch="$(gcc -dumpmachine)"
+./configure \
+    --build="$gnuArch" \
+    --disable-install-doc \
+    --disable-shared
+make -j "$(nproc)"
+make install
+
+# 	find /usr/local -type f -executable -not \( -name '*tkinter*' \) -exec ldd '{}' ';' \
+# 		| awk '/=>/ { print $(NF-1) }' \
+# 		| sort -u \
+# 		| grep -vE '^/usr/local/lib/' \
+# 		| xargs -r dpkg-query --search \
+# 		| cut -d: -f1 \
+# 		| sort -u \
+# 		| xargs -r apt-mark manual \
+#
+# 	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
+
+cd /
+rm -r /usr/src/ruby
+if yum list installed ruby; then exit 1; fi
+
+# update gem version
+gem update --system 3.3.27
+
+# rough smoke test
+ruby --version
+gem --version
+bundle --version
+
+SHELL
+
+# don't create ".bundle" in all our apps
+ENV GEM_HOME /usr/local/bundle
+ENV BUNDLE_SILENCE_ROOT_WARNING=1 \
+	BUNDLE_APP_CONFIG="$GEM_HOME"
+ENV PATH $GEM_HOME/bin:$PATH
+
+# adjust permissions of a few directories for running "gem install" as an arbitrary user
+RUN mkdir -p "$GEM_HOME" && chmod 1777 "$GEM_HOME"
+
+CMD [ "irb" ]
