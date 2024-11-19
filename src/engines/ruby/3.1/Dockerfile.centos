@@ -35,7 +35,7 @@ enabled=0
 EOF
 SHELL
 
-RUN yum update -y
+RUN yum makecache -y
 
 RUN yum install -y curl gcc make
 
