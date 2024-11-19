@@ -37,7 +37,19 @@ SHELL
 
 RUN yum makecache -y
 
+# localedef has been forcefully removed by:
+# rm -rf "$target"/usr/{{lib,share}/locale,{lib,lib64}/gconv,bin/localedef,sbin/build-locale-archive}
+# fun: CentOS 8 has `yum list glibc-langpack-\*` but not CentOS 7 :'(
+RUN yum reinstall -y glibc-common
+
 RUN yum install -y curl gcc make
+
+# fun: this has to be after `yum install curl gcc make`... but only on aarch64; go figure
+# extra fun: table is botched, localedef not happy, swallow result and test `locale` for errors
+RUN <<SHELL
+localedef -v -c -i en_US -f UTF-8 en_US.UTF-8 || true
+if locale 2>&1 | grep -e 'locale: Cannot set LC_.* to default locale: No such file or directory'; then exit 1; fi
+SHELL
 
 # Skip installing gem documentation
 COPY <<GEMRC /usr/local/etc/gemrc
@@ -49,13 +61,6 @@ ENV LANG="en_US.UTF-8"                                                          
     RUBY_MAJOR="3.2"                                                                        \
     RUBY_VERSION="3.2.2"                                                                    \
     RUBY_DOWNLOAD_SHA256="4b352d0f7ec384e332e3e44cdbfdcd5ff2d594af3c8296b5636c710975149e23"
-
-# localedef has been forcefully removed by:
-# rm -rf "$target"/usr/{{lib,share}/locale,{lib,lib64}/gconv,bin/localedef,sbin/build-locale-archive}
-RUN <<SHELL
-yum reinstall -y glibc-common
-localedef -v -c -i en_US -f UTF-8 en_US.UTF-8
-SHELL
 
 # - Compile Ruby with `--disable-shared`
 # - Update gem version
