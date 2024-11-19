@@ -1,4 +1,7 @@
-FROM ruby:3.1.6-bookworm
+# strip-tags: gnu
+# append-tags: gcc
+
+FROM eclipse-temurin:11-jammy AS jruby-9.3.9.0-jre11
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
 # variability: an identical command would be the same from `docker build`'s
@@ -34,13 +37,27 @@ RUN true "${REPRO_RUN_KEY}" && apt-get update
 # Install system dependencies for building
 RUN apt-get install -y libc6-dev build-essential git locales tzdata --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
-# Ensure sane locale (Uncomment `en_US.UTF-8` from `/etc/locale.gen` before running `locale-gen`)
-RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
+# Ensure sane locale (`eclipse-temurin` already updated `/etc/locale.gen` for `en_US.UTF-8`)
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 
 # Ensure consistent timezone
 RUN ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime
+
+# Install JRuby, pinned for reproducibility
+ENV JRUBY_VERSION 9.3.9.0
+ENV JRUBY_SHA256 251e6dd8d1d2f82922c8c778d7857e1bef82fe5ca2cf77bc09356421d0b05ab8
+RUN mkdir /opt/jruby \
+ && curl -fSL https://repo1.maven.org/maven2/org/jruby/jruby-dist/${JRUBY_VERSION}/jruby-dist-${JRUBY_VERSION}-bin.tar.gz -o /tmp/jruby.tar.gz \
+ && echo "$JRUBY_SHA256 /tmp/jruby.tar.gz" | sha256sum -c - \
+ && tar -zx --strip-components=1 -f /tmp/jruby.tar.gz -C /opt/jruby \
+ && rm /tmp/jruby.tar.gz \
+ && update-alternatives --install /usr/local/bin/ruby ruby /opt/jruby/bin/jruby 1
+ENV PATH /opt/jruby/bin:$PATH
+
+# Skip installing gem documentation
+RUN mkdir -p /opt/jruby/etc \
+ && echo -e 'install: --no-document\nupdate: --no-document' >> /opt/jruby/etc/gemrc
 
 # Install things at a specific path and create ".bundle" in there as well:
 # This prevents pollution of an app volume and makes the bundle path mountable
@@ -54,7 +71,7 @@ RUN mkdir -p "$GEM_HOME" "$BUNDLE_BIN" \
  && chmod 777 "$GEM_HOME" "$BUNDLE_BIN"
 
 ## Install a pinned RubyGems and Bundler
-RUN gem update --system 3.5.21
+RUN gem update --system 3.3.26
 RUN gem install bundler:2.3.26
 
 # Install additional gems that are in CRuby but missing from the above

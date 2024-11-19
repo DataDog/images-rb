@@ -1,4 +1,7 @@
-FROM ruby:2.7.8-bullseye
+# strip-tags: gnu
+# append-tags: gcc
+
+FROM ruby:3.4.0-preview2
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
 # variability: an identical command would be the same from `docker build`'s
@@ -54,7 +57,7 @@ RUN mkdir -p "$GEM_HOME" "$BUNDLE_BIN" \
  && chmod 777 "$GEM_HOME" "$BUNDLE_BIN"
 
 ## Install a pinned RubyGems and Bundler
-RUN gem update --system 3.3.26
+RUN gem update --system 3.5.21
 RUN gem install bundler:2.3.26
 
 # Install additional gems that are in CRuby but missing from the above

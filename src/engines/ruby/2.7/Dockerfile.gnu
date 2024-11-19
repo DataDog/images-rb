@@ -1,4 +1,7 @@
-FROM ruby:2.5.9-buster
+# strip-tags: gnu
+# append-tags: gcc
+
+FROM ruby:2.7.8-bullseye
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
 # variability: an identical command would be the same from `docker build`'s

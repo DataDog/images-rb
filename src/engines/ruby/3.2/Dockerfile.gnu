@@ -1,8 +1,7 @@
-# Last version: https://github.com/docker-library/ruby/blob/31f66490fdb837ddcc5896e3275f2188f2b7b6dd/2.3/stretch/Dockerfile
-FROM ruby:2.3.8-stretch
+# strip-tags: gnu
+# append-tags: gcc
 
-# Pull packages from debian archive, old repos don't work any more
-RUN echo "deb [trusted=yes] http://archive.debian.org/debian/ stretch main contrib non-free" | tee /etc/apt/sources.list
+FROM ruby:3.2.4-bookworm
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
 # variability: an identical command would be the same from `docker build`'s
@@ -58,7 +57,7 @@ RUN mkdir -p "$GEM_HOME" "$BUNDLE_BIN" \
  && chmod 777 "$GEM_HOME" "$BUNDLE_BIN"
 
 ## Install a pinned RubyGems and Bundler
-RUN gem update --system 3.3.26
+RUN gem update --system 3.5.21
 RUN gem install bundler:2.3.26
 
 # Install additional gems that are in CRuby but missing from the above

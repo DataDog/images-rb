@@ -1,4 +1,4 @@
-FROM eclipse-temurin:8-jammy AS jruby-9.2.21.0-jre8
+FROM eclipse-temurin:22-jdk-alpine AS jruby-9.2.21.0-jre22
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
 # variability: an identical command would be the same from `docker build`'s
@@ -22,24 +22,14 @@ FROM eclipse-temurin:8-jammy AS jruby-9.2.21.0-jre8
 # results.
 ARG REPRO_RUN_KEY=0
 
-# Configure apt retries to improve automation reliability
-RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
-
-# `apt-get update` is uncontrolled and fetches whatever is today's index.
+# `apk update` is uncontrolled and fetches whatever is today's index.
 # For the sake of reproducibility subsequent steps (including in dependent
-# images) should not do `apt-get update`, instead this base image should be
+# images) should not do `apk update`, instead this base image should be
 # updated by changing the `REPRO_RUN_KEY`.
-RUN true "${REPRO_RUN_KEY}" && apt-get update
+RUN true "${REPRO_RUN_KEY}" && apk update
 
-# Install system dependencies for building
-RUN apt-get install -y libc6-dev build-essential git locales tzdata --no-install-recommends && rm -rf /var/lib/apt/lists/*
-
-# Ensure sane locale (`eclipse-temurin` already updated `/etc/locale.gen` for `en_US.UTF-8`)
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-
-# Ensure consistent timezone
-RUN ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime
+# Add a few packages for consistency
+RUN apk add curl bash
 
 # Install JRuby, pinned for reproducibility
 ENV JRUBY_VERSION 9.2.21.0
@@ -49,23 +39,12 @@ RUN mkdir /opt/jruby \
  && echo "$JRUBY_SHA256 /tmp/jruby.tar.gz" | sha256sum -c - \
  && tar -zx --strip-components=1 -f /tmp/jruby.tar.gz -C /opt/jruby \
  && rm /tmp/jruby.tar.gz \
- && update-alternatives --install /usr/local/bin/ruby ruby /opt/jruby/bin/jruby 1
+ && ln -sf /opt/jruby/bin/jruby /usr/local/bin/ruby
 ENV PATH /opt/jruby/bin:$PATH
 
 # Skip installing gem documentation
 RUN mkdir -p /opt/jruby/etc \
  && echo -e 'install: --no-document\nupdate: --no-document' >> /opt/jruby/etc/gemrc
-
-# Install things at a specific path and create ".bundle" in there as well:
-# This prevents pollution of an app volume and makes the bundle path mountable
-# as a volume as well.
-ENV GEM_HOME /usr/local/bundle
-ENV BUNDLE_BIN="$GEM_HOME/bin" \
-    BUNDLE_SILENCE_ROOT_WARNING=1 \
-    BUNDLE_APP_CONFIG="$GEM_HOME"
-ENV PATH $BUNDLE_BIN:$PATH
-RUN mkdir -p "$GEM_HOME" "$BUNDLE_BIN" \
- && chmod 777 "$GEM_HOME" "$BUNDLE_BIN"
 
 ## Install a pinned RubyGems and Bundler
 RUN gem update --system 3.3.26

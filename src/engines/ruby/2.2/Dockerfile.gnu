@@ -1,5 +1,9 @@
-# ruby:2.1.10 was based on jessie, but never got a aarch64 image
-# aarch64 used to be supported upon release but is not part of LTS, so archive.debian.org does not contain aarch64: https://www.debian.org/releases/jessie/
+# strip-tags: gnu
+# append-tags: gcc
+
+# ruby:2.2.10-jessie was based on jessie, and had a aarch64 image
+# aarch64 used to be supported upon release but is not part of LTS,
+# so archive.debian.org does not contain aarch64: https://www.debian.org/releases/jessie/
 
 # Note: See the "Publishing updates to images" note in ./README.md for how to publish new builds of this container image
 
@@ -8,8 +12,8 @@
 # If you're going to try your luck, make sure that the following work after your changes:
 # gem install mysql
 #
-# taken from https://github.com/docker-library/ruby/blob/c5693b25aa865489fee130e572a3f11bccebd21b/2.1/Dockerfile
-FROM buildpack-deps:stretch AS ruby-2.1.10-stretch
+# taken from https://github.com/docker-library/ruby/blob/b5ef401d348ca9b1d9f6a5cb4b25f32bf013daca/2.2/jessie/Dockerfile
+FROM buildpack-deps:stretch AS ruby-2.2.10-stretch
 
 # skip installing gem documentation
 RUN mkdir -p /usr/local/etc \
@@ -18,19 +22,21 @@ RUN mkdir -p /usr/local/etc \
     echo 'update: --no-document'; \
   } >> /usr/local/etc/gemrc
 
-ENV RUBY_MAJOR 2.1
-ENV RUBY_VERSION 2.1.10
-ENV RUBY_DOWNLOAD_SHA256 5be9f8d5d29d252cd7f969ab7550e31bbb001feb4a83532301c0dd3b5006e148
+ENV RUBY_MAJOR 2.2
+ENV RUBY_VERSION 2.2.10
+ENV RUBY_DOWNLOAD_SHA256 bf77bcb7e6666ccae8d0882ea12b05f382f963f0a9a5285a328760c06a9ab650
 ENV RUBYGEMS_VERSION 2.7.11
 ENV BUNDLER_VERSION 1.17.3
 
 # Pull packages from debian archive, old repos don't work any more
 RUN echo "deb [trusted=yes] http://archive.debian.org/debian/ stretch main contrib non-free" | tee /etc/apt/sources.list
 
+# some of ruby's build scripts are written in ruby
+#   we purge system ruby later to make sure our final image uses what we just built
 RUN set -ex \
   && apt-get update \
-  # ruby 2.1 needs libssl1.0-dev
-  && apt-get install -y --no-install-recommends wget ca-certificates \
+  # ruby 2.2 needs libssl1.0-dev
+  && apt-get install -y --no-install-recommends wget \
   && apt-get remove -y libssl-dev libcurl4-openssl-dev \
   && ARCH=$(dpkg --print-architecture) \
   && wget "https://snapshot.debian.org/archive/debian-security/20220317T093342Z/pool/updates/main/o/openssl1.0/libssl1.0.2_1.0.2u-1~deb9u7_${ARCH}.deb" \
@@ -49,6 +55,7 @@ RUN set -ex \
   ' \
   && apt-get install -y --no-install-recommends $buildDeps \
   && rm -rf /var/lib/apt/lists/* \
+  \
   && wget -O ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz" \
   && echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.xz" | sha256sum -c - \
   \
@@ -97,7 +104,7 @@ RUN mkdir -p "$GEM_HOME" "$BUNDLE_BIN" \
 
 CMD [ "irb" ]
 
-FROM ruby-2.1.10-stretch
+FROM ruby-2.2.10-stretch
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
 # variability: an identical command would be the same from `docker build`'s
@@ -158,7 +165,7 @@ RUN gem install bundler --version 1.17.3
 
 # Install additional gems that are in CRuby but missing from the above
 # JRuby install distribution. These are version-pinned for reproducibility.
-RUN gem install rake:12.3.3
+RUN gem install rake:13.0.6
 
 # Start IRB as a default
 CMD [ "irb" ]
