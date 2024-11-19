@@ -50,6 +50,13 @@ ENV LANG="en_US.UTF-8"                                                          
     RUBY_VERSION="2.7.8"                                                                    \
     RUBY_DOWNLOAD_SHA256="f22f662da504d49ce2080e446e4bea7008cee11d5ec4858fc69000d0e5b1d7fb"
 
+# localedef has been forcefully removed by:
+# rm -rf "$target"/usr/{{lib,share}/locale,{lib,lib64}/gconv,bin/localedef,sbin/build-locale-archive}
+RUN <<SHELL
+yum reinstall -y glibc-common
+localedef -v -c -i en_US -f UTF-8 en_US.UTF-8
+SHELL
+
 # - Compile Ruby with `--disable-shared`
 # - Update gem version
 
