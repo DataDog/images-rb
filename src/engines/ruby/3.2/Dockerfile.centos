@@ -45,7 +45,7 @@ install: --no-document
 update: --no-document
 GEMRC
 
-ENV LANG="C.UTF-8"                                                                          \
+ENV LANG="en_US.UTF-8"                                                                      \
     RUBY_MAJOR="3.2"                                                                        \
     RUBY_VERSION="3.2.2"                                                                    \
     RUBY_DOWNLOAD_SHA256="4b352d0f7ec384e332e3e44cdbfdcd5ff2d594af3c8296b5636c710975149e23"

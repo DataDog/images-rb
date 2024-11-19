@@ -45,9 +45,9 @@ install: --no-document
 update: --no-document
 GEMRC
 
-ENV LANG="C.UTF-8"                                                                          \
+ENV LANG="en_US.UTF-8"                                                                      \
     RUBY_MAJOR="3.4"                                                                        \
-    RUBY_VERSION="3.4.0-preview2"                                                                    \
+    RUBY_VERSION="3.4.0-preview2"                                                           \
     RUBY_DOWNLOAD_SHA256="626bf4fe952323c15ec9a8999f470ec136ef91c0fc34c484646aaaa9a0b62ca7"
 
 # - Compile Ruby with `--disable-shared`
