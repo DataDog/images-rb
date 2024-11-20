@@ -286,9 +286,9 @@ jobs:
         run: |
           docker buildx build ${{ steps.vars.outputs.SRC }} --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }} --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ matrix.version }}
 
-      # TODO: hardcoded, reuse append-tags directive instead (or better, unify gnu)
+      # TODO: hardcoded, reuse append-tags directive instead (or better, unify gnu+centos)
       - name: Push release compiler image (${{ join(matrix.arch, ', ') }})
-        if: ${{ inputs.push && matrix.libc == 'gnu' }}
+        if: ${{ inputs.push && (matrix.libc == 'gnu' || matrix.libc == 'centos') }}
         run: |
           docker buildx build ${{ steps.vars.outputs.SRC }} --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc
 
