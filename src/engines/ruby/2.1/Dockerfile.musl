@@ -1,3 +1,4 @@
+# platforms: linux/x86_64
 FROM ruby:2.1-alpine
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
