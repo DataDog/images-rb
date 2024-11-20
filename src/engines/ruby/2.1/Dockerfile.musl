@@ -29,6 +29,8 @@ ARG REPRO_RUN_KEY=0
 # updated by changing the `REPRO_RUN_KEY`.
 RUN true "${REPRO_RUN_KEY}" && apk update
 
+ENV LANG en_US.UTF-8
+
 ## Install a pinned RubyGems and Bundler
 RUN gem update --system 2.7.11
 RUN gem install bundler --version 1.17.3
