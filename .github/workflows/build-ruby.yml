@@ -144,6 +144,31 @@ jobs:
             version: "9.4"
             libc: musl
             arch: ["x86_64", "aarch64"]
+          # centos
+          - engine: ruby
+            version: "2.7"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.0"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.1"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.2"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.3"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.4"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
     runs-on: ubuntu-latest
     name: Build (${{ matrix.engine }} ${{ matrix.version }} ${{ matrix.libc }})
     steps:
@@ -229,7 +254,7 @@ jobs:
           docker run --platform linux/aarch64 --rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} bundle --version
           docker run --platform linux/aarch64 --rm -v "${PWD}":"${PWD}" -w "${PWD}" -e BUNDLE_GEMFILE=gemfiles/${{ matrix.engine }}-${{ matrix.version }}.gemfile ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }} /bin/sh -c 'bundle install --with="test" --without="check ide" && bundle exec rake test'
 
-      # TODO: hardcoded musl, unify gnu instead
+      # TODO: hardcoded musl, unify gnu+centos instead
       # TODO: hardcoded tags, use proper tag building
       - name: Tag single-arch image (aarch64)
         if: ${{ contains(matrix.arch, 'aarch64') }}
