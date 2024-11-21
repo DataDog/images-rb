@@ -35,7 +35,33 @@ enabled=0
 EOF
 SHELL
 
-RUN yum makecache -y
+# A few RUN actions in Dockerfiles are subject to uncontrollable outside
+# variability: an identical command would be the same from `docker build`'s
+# point of view but does not indicate the result would be identical at
+# different points in time.
+#
+# This causes two possible issues:
+#
+# - one wants to capture a new state and so wants the identical
+#   non-reproducible command to produce a new result. This could be achieved
+#   with --no-cache but this affects every single operation in a Dockerfile
+# - one wants to identify a specific state and leverage caching at that
+#   specific state.
+#
+# To that end a BUILD_ARG is introduced to capture an arbitrary identifier of
+# that state (typically time) that is introduced in non-reproducible commands
+# to make them appear different to Docker.
+#
+# Of course it only works when caching data is available: two independent
+# builds with the same value and no cache shared would produce different
+# results.
+ARG REPRO_RUN_KEY=0
+
+# `yum` db fetching is uncontrolled and fetches whatever is today's index.
+# For the sake of reproducibility subsequent steps (including in dependent
+# images) should not perform `yum` db cache updates, instead this base image
+# should be updated by changing the `REPRO_RUN_KEY`.
+RUN true "${REPRO_RUN_KEY}" && yum makecache -y
 
 # localedef has been forcefully removed by:
 # rm -rf "$target"/usr/{{lib,share}/locale,{lib,lib64}/gconv,bin/localedef,sbin/build-locale-archive}
