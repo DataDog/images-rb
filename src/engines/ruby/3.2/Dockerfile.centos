@@ -96,7 +96,7 @@ if [[ -n "$rustArch" ]]; then
     cargo --version
 fi
 
-yum install -y autoconf bison gdbm-devel openssl-devel libyaml-devel libffi-devel
+yum install -y xz gcc automake bison zlib-devel libyaml-devel openssl-devel gdbm-devel readline-devel ncurses-devel libffi-devel
 
 curl -o ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz"
 echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.xz" | sha256sum --check --strict
