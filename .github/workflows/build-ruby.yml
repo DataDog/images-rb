@@ -146,6 +146,30 @@ jobs:
             arch: ["x86_64", "aarch64"]
           # centos
           - engine: ruby
+            version: "2.1"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.2"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.3"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.4"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.5"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.6"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
             version: "2.7"
             libc: centos
             arch: ["x86_64", "aarch64"]
