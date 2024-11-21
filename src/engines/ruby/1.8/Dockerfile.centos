@@ -1,0 +1,227 @@
+# platforms: linux/x86_64
+
+# CentOS 7.9 has glibc 2.17
+FROM public.ecr.aws/docker/library/centos:centos7.9.2009
+
+# Set yum vault
+RUN <<SHELL
+set -euxo pipefail
+
+if [ "$(uname -m)" != "x86_64" ]; then
+    repo_version="altarch/7.9.2009"
+else
+    repo_version="7.9.2009"
+fi
+
+cat <<EOF > /etc/yum.repos.d/CentOS-Base.repo
+[base]
+name=CentOS-\$releasever - Base
+baseurl=http://vault.centos.org/${repo_version}/os/\$basearch/
+gpgcheck=0
+
+[updates]
+name=CentOS-\$releasever - Updates
+baseurl=http://vault.centos.org/${repo_version}/updates/\$basearch/
+gpgcheck=0
+
+[extras]
+name=CentOS-\$releasever - Extras
+baseurl=http://vault.centos.org/${repo_version}/extras/\$basearch/
+gpgcheck=0
+
+[centosplus]
+name=CentOS-\$releasever - Plus
+baseurl=http://vault.centos.org/${repo_version}/centosplus/\$basearch/
+gpgcheck=0
+enabled=0
+EOF
+SHELL
+
+RUN yum makecache -y
+
+# localedef has been forcefully removed by:
+# rm -rf "$target"/usr/{{lib,share}/locale,{lib,lib64}/gconv,bin/localedef,sbin/build-locale-archive}
+# fun: CentOS 8 has `yum list glibc-langpack-\*` but not CentOS 7 :'(
+RUN yum reinstall -y glibc-common
+
+RUN yum install -y curl gcc make
+
+# fun: this has to be after `yum install curl gcc make`... but only on aarch64; go figure
+# extra fun: table is botched, localedef not happy, swallow result and test `locale` for errors
+RUN <<SHELL
+localedef -v -c -i en_US -f UTF-8 en_US.UTF-8 || true
+if locale 2>&1 | grep -e 'locale: Cannot set LC_.* to default locale: No such file or directory'; then exit 1; fi
+SHELL
+
+# Skip installing gem documentation
+COPY <<GEMRC /usr/local/etc/gemrc
+install: --no-document
+update: --no-document
+GEMRC
+
+ENV LANG="en_US.UTF-8"                                                                      \
+    RUBY_MAJOR="1.8"                                                                        \
+    RUBY_VERSION="1.8.7-p376"                                                               \
+    RUBY_DOWNLOAD_SHA256="8dfe254590e77b82ceaffba29ad38d1cee7c4180ab50340fecdb76a6fa59330b"
+
+# - Compile Ruby with `--disable-shared`
+# - Update gem version
+
+RUN <<SHELL
+set -euxo pipefail
+
+yum install -y xz gcc automake bison zlib-devel libyaml-devel openssl-devel gdbm-devel readline-devel ncurses-devel libffi-devel patch
+
+curl -L -o ruby.tar.gz "https://github.com/ruby/ruby/archive/f48ae0d10c5b586db5748b0d4b645c7e9ff5d52e.tar.gz"
+echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.gz" | sha256sum --check --strict
+mkdir -p /usr/src/ruby
+tar -xzf ruby.tar.gz -C /usr/src/ruby --strip-components=1
+rm ruby.tar.gz
+
+cd /usr/src/ruby
+
+# hack in "ENABLE_PATH_CHECK" disabling to suppress:
+#   warning: Insecure world writable dir
+{
+    echo '#define ENABLE_PATH_CHECK 0'
+    echo
+    cat file.c
+} > file.c.new
+mv file.c.new file.c
+
+# https://github.com/rbenv/ruby-build/issues/444
+# https://bugs.ruby-lang.org/issues/9065
+# https://github.com/ruby/ruby/commit/f895841e2c2861f8d3ea2247817d6ffd35dff71c.patch
+patch -p1 <<'PATCH'
+diff --git a/ext/openssl/ossl_pkey_ec.c b/ext/openssl/ossl_pkey_ec.c
+index 8e6d88f60609b3..29e28ca2f4420f 100644
+--- a/ext/openssl/ossl_pkey_ec.c
++++ b/ext/openssl/ossl_pkey_ec.c
+@@ -762,8 +762,10 @@ static VALUE ossl_ec_group_initialize(int argc, VALUE *argv, VALUE self)
+                 method = EC_GFp_mont_method();
+             } else if (id == s_GFp_nist) {
+                 method = EC_GFp_nist_method();
++#if !defined(OPENSSL_NO_EC2M)
+             } else if (id == s_GF2m_simple) {
+                 method = EC_GF2m_simple_method();
++#endif
+             }
+
+             if (method) {
+@@ -817,8 +819,10 @@ static VALUE ossl_ec_group_initialize(int argc, VALUE *argv, VALUE self)
+
+             if (id == s_GFp) {
+                 new_curve = EC_GROUP_new_curve_GFp;
++#if !defined(OPENSSL_NO_EC2M)
+             } else if (id == s_GF2m) {
+                 new_curve = EC_GROUP_new_curve_GF2m;
++#endif
+             } else {
+                 ossl_raise(rb_eArgError, "unknown symbol, must be :GFp or :GF2m");
+             }
+PATCH
+
+autoconf
+
+gnuArch="$(uname -m)-linux-gnu"
+./configure \
+    --build="$gnuArch" \
+    --disable-install-doc \
+    --disable-shared
+make -j "$(nproc)"
+make install
+
+# 	find /usr/local -type f -executable -not \( -name '*tkinter*' \) -exec ldd '{}' ';' \
+# 		| awk '/=>/ { print $(NF-1) }' \
+# 		| sort -u \
+# 		| grep -vE '^/usr/local/lib/' \
+# 		| xargs -r dpkg-query --search \
+# 		| cut -d: -f1 \
+# 		| sort -u \
+# 		| xargs -r apt-mark manual \
+#
+# 	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
+#
+# find /usr/local -type f -executable -not \( -name '*tkinter*' \) -exec ldd '{}' ';' \
+#       | awk '/=>/ { print $(NF-1) }' \
+#       | grep -v '=>' \
+#       | sort -u \
+#       | grep -vE '^/usr/local/lib/' \
+#       | xargs -r rpm -qf \
+#       | sort -u \
+#       | xargs -r yum ?mark-manual?
+#
+# yum autoremove -y
+# yum remove --setopt=clean_requirements_on_remove=1
+# package-cleanup --leaves && yum autoremove # yum-utils
+# sudo yum history list pdftk
+# sudo yum history undo 88
+
+cd /
+rm -r /usr/src/ruby
+if yum list installed ruby; then exit 1; fi
+
+# update gem version
+curl -o rubygems.tar.gz "https://rubygems.org/rubygems/rubygems-1.6.2.tgz"
+echo "cb5261818b931b5ea2cb54bc1d583c47823543fcf9682f0d6298849091c1cea7 *rubygems.tar.gz" | sha256sum --check --strict
+mkdir -p /usr/src/rubygems
+tar -xzf rubygems.tar.gz -C /usr/src/rubygems --strip-components=1
+rm rubygems.tar.gz
+
+cd /usr/src/rubygems
+ruby setup.rb
+cd /
+rm -r /usr/src/rubygems
+
+gem update --system 2.7.11
+gem install bundler --version 1.17.3 --force
+
+# patch away annoying deprecations
+cd /usr/local/lib/ruby/gems/1.8/gems/rubygems-update-2.7.11/lib
+patch -p1 <<'PATCH'
+--- a/rubygems/deprecate.rb	2024-11-21 14:48:56
++++ b/rubygems/deprecate.rb	2024-11-21 14:49:45
+@@ -24,7 +24,7 @@
+ module Gem::Deprecate
+
+   def self.skip # :nodoc:
+-    @skip ||= false
++    @skip ||= true
+   end
+
+   def self.skip= v # :nodoc:
+PATCH
+cd /usr/local/lib/ruby/site_ruby/1.8
+patch -p1 <<'PATCH'
+--- a/rubygems/deprecate.rb	2024-11-21 14:48:56
++++ b/rubygems/deprecate.rb	2024-11-21 14:49:45
+@@ -24,7 +24,7 @@
+ module Gem::Deprecate
+
+   def self.skip # :nodoc:
+-    @skip ||= false
++    @skip ||= true
+   end
+
+   def self.skip= v # :nodoc:
+PATCH
+cd /
+
+# rough smoke test
+ruby --version
+gem --version
+bundle --version
+
+SHELL
+
+# don't create ".bundle" in all our apps
+ENV GEM_HOME /usr/local/bundle
+ENV BUNDLE_SILENCE_ROOT_WARNING=1 \
+	BUNDLE_APP_CONFIG="$GEM_HOME"
+ENV PATH $GEM_HOME/bin:$PATH
+
+# adjust permissions of a few directories for running "gem install" as an arbitrary user
+RUN mkdir -p "$GEM_HOME" && chmod 1777 "$GEM_HOME"
+
+CMD [ "irb" ]
+
