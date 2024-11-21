@@ -219,7 +219,11 @@ namespace :docker do
     tag = target[:tag]
     platform = docker_platform
 
-    exec "docker run --rm -it --platform #{platform} -v #{Dir.pwd}:#{Dir.pwd} -w #{Dir.pwd} #{image}:#{tag}"
+    version = tag =~ /^(\d+\.\d+)/ && $1
+    engine = image =~ /([^\/]+)$/ && $1
+    gemfile = "gemfiles/#{engine}-#{version}.gemfile"
+
+    exec "docker run --rm -it --platform #{platform} -v #{Dir.pwd}:#{Dir.pwd} -w #{Dir.pwd} -e BUNDLE_GEMFILE=#{Dir.pwd}/#{gemfile} #{image}:#{tag}"
   end
 
   desc "Run container with shell."
@@ -230,7 +234,11 @@ namespace :docker do
     tag = target[:tag]
     platform = docker_platform
 
-    exec "docker run --rm -it --platform #{platform} -v #{Dir.pwd}:#{Dir.pwd} -w #{Dir.pwd} #{image}:#{tag} /bin/sh"
+    version = tag =~ /^(\d+\.\d+)/ && $1
+    engine = image =~ /([^\/]+)$/ && $1
+    gemfile = "gemfiles/#{engine}-#{version}.gemfile"
+
+    exec "docker run --rm -it --platform #{platform} -v #{Dir.pwd}:#{Dir.pwd} -w #{Dir.pwd} -e BUNDLE_GEMFILE=#{Dir.pwd}/#{gemfile} #{image}:#{tag} /bin/sh"
   end
 
   desc "Run container with irb."
@@ -241,6 +249,10 @@ namespace :docker do
     tag = target[:tag]
     platform = docker_platform
 
-    exec "docker run --rm -it --platform #{platform} -v #{Dir.pwd}:#{Dir.pwd} -w #{Dir.pwd} #{image}:#{tag} irb"
+    version = tag =~ /^(\d+\.\d+)/ && $1
+    engine = image =~ /([^\/]+)$/ && $1
+    gemfile = "gemfiles/#{engine}-#{version}.gemfile"
+
+    exec "docker run --rm -it --platform #{platform} -v #{Dir.pwd}:#{Dir.pwd} -w #{Dir.pwd} -e BUNDLE_GEMFILE=#{Dir.pwd}/#{gemfile} #{image}:#{tag} irb"
   end
 end
