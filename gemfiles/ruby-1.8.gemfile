@@ -1,0 +1,10 @@
+source "https://rubygems.org"
+
+gem "rake"
+
+group :test do
+  # These introduce regexes that are incompatible with 1.8.7
+  # - https://github.com/minitest/minitest/commit/b0e07f4dd05d5369b913aa72f8d02609790c090f
+  # - https://github.com/minitest/minitest/commit/b2eebc2d7c492ce0eb11bb88752b841990f9ac92
+  gem "minitest", "~> 5.11.0"
+end

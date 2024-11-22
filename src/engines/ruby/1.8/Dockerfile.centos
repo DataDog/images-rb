@@ -1,3 +1,5 @@
+# platforms: linux/x86_64
+
 # CentOS 7.9 has glibc 2.17
 FROM public.ecr.aws/docker/library/centos:centos7.9.2009
 
@@ -84,9 +86,9 @@ update: --no-document
 GEMRC
 
 ENV LANG="en_US.UTF-8"                                                                      \
-    RUBY_MAJOR="3.2"                                                                        \
-    RUBY_VERSION="3.2.2"                                                                    \
-    RUBY_DOWNLOAD_SHA256="4b352d0f7ec384e332e3e44cdbfdcd5ff2d594af3c8296b5636c710975149e23"
+    RUBY_MAJOR="1.8"                                                                        \
+    RUBY_VERSION="1.8.7-p376"                                                               \
+    RUBY_DOWNLOAD_SHA256="8dfe254590e77b82ceaffba29ad38d1cee7c4180ab50340fecdb76a6fa59330b"
 
 # - Compile Ruby with `--disable-shared`
 # - Update gem version
@@ -94,41 +96,13 @@ ENV LANG="en_US.UTF-8"                                                          
 RUN <<SHELL
 set -euxo pipefail
 
-case "$(uname -m)" in
-    'x86_64')
-        rustArch='x86_64-unknown-linux-gnu'
-        rustupUrl='https://static.rust-lang.org/rustup/archive/1.26.0/x86_64-unknown-linux-gnu/rustup-init'
-        rustupSha256='0b2f6c8f85a3d02fde2efc0ced4657869d73fccfce59defb4e8d29233116e6db'
-        ;;
-    'aarch64')
-        rustArch='aarch64-unknown-linux-gnu'
-        rustupUrl='https://static.rust-lang.org/rustup/archive/1.26.0/aarch64-unknown-linux-gnu/rustup-init'
-        rustupSha256='673e336c81c65e6b16dcdede33f4cc9ed0f08bde1dbe7a935f113605292dc800'
-        ;;
-esac
+yum install -y xz gcc automake bison zlib-devel libyaml-devel openssl-devel gdbm-devel readline-devel ncurses-devel libffi-devel patch
 
-if [[ -n "$rustArch" ]]; then
-    mkdir -p /tmp/rust
-
-    curl -o /tmp/rust/rustup-init "$rustupUrl"
-    echo "$rustupSha256 */tmp/rust/rustup-init" | sha256sum --check --strict
-    chmod +x /tmp/rust/rustup-init
-
-    export RUSTUP_HOME='/tmp/rust/rustup' CARGO_HOME='/tmp/rust/cargo'
-    export PATH="$CARGO_HOME/bin:$PATH"
-    /tmp/rust/rustup-init -y --no-modify-path --profile minimal --default-toolchain '1.74.1' --default-host "$rustArch"
-
-    rustc --version
-    cargo --version
-fi
-
-yum install -y xz gcc automake bison zlib-devel libyaml-devel openssl-devel gdbm-devel readline-devel ncurses-devel libffi-devel
-
-curl -o ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz"
-echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.xz" | sha256sum --check --strict
+curl -L -o ruby.tar.gz "https://github.com/ruby/ruby/archive/f48ae0d10c5b586db5748b0d4b645c7e9ff5d52e.tar.gz"
+echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.gz" | sha256sum --check --strict
 mkdir -p /usr/src/ruby
-tar -xJf ruby.tar.xz -C /usr/src/ruby --strip-components=1
-rm ruby.tar.xz
+tar -xzf ruby.tar.gz -C /usr/src/ruby --strip-components=1
+rm ruby.tar.gz
 
 cd /usr/src/ruby
 
@@ -141,18 +115,47 @@ cd /usr/src/ruby
 } > file.c.new
 mv file.c.new file.c
 
+# https://github.com/rbenv/ruby-build/issues/444
+# https://bugs.ruby-lang.org/issues/9065
+# https://github.com/ruby/ruby/commit/f895841e2c2861f8d3ea2247817d6ffd35dff71c.patch
+patch -p1 <<'PATCH'
+diff --git a/ext/openssl/ossl_pkey_ec.c b/ext/openssl/ossl_pkey_ec.c
+index 8e6d88f60609b3..29e28ca2f4420f 100644
+--- a/ext/openssl/ossl_pkey_ec.c
++++ b/ext/openssl/ossl_pkey_ec.c
+@@ -762,8 +762,10 @@ static VALUE ossl_ec_group_initialize(int argc, VALUE *argv, VALUE self)
+                 method = EC_GFp_mont_method();
+             } else if (id == s_GFp_nist) {
+                 method = EC_GFp_nist_method();
++#if !defined(OPENSSL_NO_EC2M)
+             } else if (id == s_GF2m_simple) {
+                 method = EC_GF2m_simple_method();
++#endif
+             }
+
+             if (method) {
+@@ -817,8 +819,10 @@ static VALUE ossl_ec_group_initialize(int argc, VALUE *argv, VALUE self)
+
+             if (id == s_GFp) {
+                 new_curve = EC_GROUP_new_curve_GFp;
++#if !defined(OPENSSL_NO_EC2M)
+             } else if (id == s_GF2m) {
+                 new_curve = EC_GROUP_new_curve_GF2m;
++#endif
+             } else {
+                 ossl_raise(rb_eArgError, "unknown symbol, must be :GFp or :GF2m");
+             }
+PATCH
+
 autoconf
 
-gnuArch="$(gcc -dumpmachine)"
+gnuArch="$(uname -m)-linux-gnu"
 ./configure \
     --build="$gnuArch" \
     --disable-install-doc \
-    --disable-shared \
-    ${rustArch:+--enable-yjit}
+    --disable-shared
 make -j "$(nproc)"
 make install
-
-rm -rf /tmp/rust
 
 # 	find /usr/local -type f -executable -not \( -name '*tkinter*' \) -exec ldd '{}' ';' \
 # 		| awk '/=>/ { print $(NF-1) }' \
@@ -164,13 +167,71 @@ rm -rf /tmp/rust
 # 		| xargs -r apt-mark manual \
 #
 # 	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
+#
+# find /usr/local -type f -executable -not \( -name '*tkinter*' \) -exec ldd '{}' ';' \
+#       | awk '/=>/ { print $(NF-1) }' \
+#       | grep -v '=>' \
+#       | sort -u \
+#       | grep -vE '^/usr/local/lib/' \
+#       | xargs -r rpm -qf \
+#       | sort -u \
+#       | xargs -r yum ?mark-manual?
+#
+# yum autoremove -y
+# yum remove --setopt=clean_requirements_on_remove=1
+# package-cleanup --leaves && yum autoremove # yum-utils
+# sudo yum history list pdftk
+# sudo yum history undo 88
 
 cd /
 rm -r /usr/src/ruby
 if yum list installed ruby; then exit 1; fi
 
 # update gem version
-gem update --system 3.5.21
+curl -o rubygems.tar.gz "https://rubygems.org/rubygems/rubygems-1.6.2.tgz"
+echo "cb5261818b931b5ea2cb54bc1d583c47823543fcf9682f0d6298849091c1cea7 *rubygems.tar.gz" | sha256sum --check --strict
+mkdir -p /usr/src/rubygems
+tar -xzf rubygems.tar.gz -C /usr/src/rubygems --strip-components=1
+rm rubygems.tar.gz
+
+cd /usr/src/rubygems
+ruby setup.rb
+cd /
+rm -r /usr/src/rubygems
+
+gem update --system 2.7.11
+gem install bundler --version 1.17.3 --force
+
+# patch away annoying deprecations
+cd /usr/local/lib/ruby/gems/1.8/gems/rubygems-update-2.7.11/lib
+patch -p1 <<'PATCH'
+--- a/rubygems/deprecate.rb	2024-11-21 14:48:56
++++ b/rubygems/deprecate.rb	2024-11-21 14:49:45
+@@ -24,7 +24,7 @@
+ module Gem::Deprecate
+
+   def self.skip # :nodoc:
+-    @skip ||= false
++    @skip ||= true
+   end
+
+   def self.skip= v # :nodoc:
+PATCH
+cd /usr/local/lib/ruby/site_ruby/1.8
+patch -p1 <<'PATCH'
+--- a/rubygems/deprecate.rb	2024-11-21 14:48:56
++++ b/rubygems/deprecate.rb	2024-11-21 14:49:45
+@@ -24,7 +24,7 @@
+ module Gem::Deprecate
+
+   def self.skip # :nodoc:
+-    @skip ||= false
++    @skip ||= true
+   end
+
+   def self.skip= v # :nodoc:
+PATCH
+cd /
 
 # rough smoke test
 ruby --version
@@ -189,3 +250,4 @@ ENV PATH $GEM_HOME/bin:$PATH
 RUN mkdir -p "$GEM_HOME" && chmod 1777 "$GEM_HOME"
 
 CMD [ "irb" ]
+

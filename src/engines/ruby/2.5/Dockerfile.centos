@@ -84,43 +84,15 @@ update: --no-document
 GEMRC
 
 ENV LANG="en_US.UTF-8"                                                                      \
-    RUBY_MAJOR="3.2"                                                                        \
-    RUBY_VERSION="3.2.2"                                                                    \
-    RUBY_DOWNLOAD_SHA256="4b352d0f7ec384e332e3e44cdbfdcd5ff2d594af3c8296b5636c710975149e23"
+    RUBY_MAJOR="2.5"                                                                        \
+    RUBY_VERSION="2.5.9"                                                                    \
+    RUBY_DOWNLOAD_SHA256="a87f2fa901408cc77652c1a55ff976695bbe54830ff240e370039eca14b358f0"
 
 # - Compile Ruby with `--disable-shared`
 # - Update gem version
 
 RUN <<SHELL
 set -euxo pipefail
-
-case "$(uname -m)" in
-    'x86_64')
-        rustArch='x86_64-unknown-linux-gnu'
-        rustupUrl='https://static.rust-lang.org/rustup/archive/1.26.0/x86_64-unknown-linux-gnu/rustup-init'
-        rustupSha256='0b2f6c8f85a3d02fde2efc0ced4657869d73fccfce59defb4e8d29233116e6db'
-        ;;
-    'aarch64')
-        rustArch='aarch64-unknown-linux-gnu'
-        rustupUrl='https://static.rust-lang.org/rustup/archive/1.26.0/aarch64-unknown-linux-gnu/rustup-init'
-        rustupSha256='673e336c81c65e6b16dcdede33f4cc9ed0f08bde1dbe7a935f113605292dc800'
-        ;;
-esac
-
-if [[ -n "$rustArch" ]]; then
-    mkdir -p /tmp/rust
-
-    curl -o /tmp/rust/rustup-init "$rustupUrl"
-    echo "$rustupSha256 */tmp/rust/rustup-init" | sha256sum --check --strict
-    chmod +x /tmp/rust/rustup-init
-
-    export RUSTUP_HOME='/tmp/rust/rustup' CARGO_HOME='/tmp/rust/cargo'
-    export PATH="$CARGO_HOME/bin:$PATH"
-    /tmp/rust/rustup-init -y --no-modify-path --profile minimal --default-toolchain '1.74.1' --default-host "$rustArch"
-
-    rustc --version
-    cargo --version
-fi
 
 yum install -y xz gcc automake bison zlib-devel libyaml-devel openssl-devel gdbm-devel readline-devel ncurses-devel libffi-devel
 
@@ -147,12 +119,9 @@ gnuArch="$(gcc -dumpmachine)"
 ./configure \
     --build="$gnuArch" \
     --disable-install-doc \
-    --disable-shared \
-    ${rustArch:+--enable-yjit}
+    --disable-shared
 make -j "$(nproc)"
 make install
-
-rm -rf /tmp/rust
 
 # 	find /usr/local -type f -executable -not \( -name '*tkinter*' \) -exec ldd '{}' ';' \
 # 		| awk '/=>/ { print $(NF-1) }' \
@@ -164,13 +133,28 @@ rm -rf /tmp/rust
 # 		| xargs -r apt-mark manual \
 #
 # 	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
+#
+# find /usr/local -type f -executable -not \( -name '*tkinter*' \) -exec ldd '{}' ';' \
+#       | awk '/=>/ { print $(NF-1) }' \
+#       | grep -v '=>' \
+#       | sort -u \
+#       | grep -vE '^/usr/local/lib/' \
+#       | xargs -r rpm -qf \
+#       | sort -u \
+#       | xargs -r yum ?mark-manual?
+#
+# yum autoremove -y
+# yum remove --setopt=clean_requirements_on_remove=1
+# package-cleanup --leaves && yum autoremove # yum-utils
+# sudo yum history list pdftk
+# sudo yum history undo 88
 
 cd /
 rm -r /usr/src/ruby
 if yum list installed ruby; then exit 1; fi
 
 # update gem version
-gem update --system 3.5.21
+gem update --system 3.3.27
 
 # rough smoke test
 ruby --version
@@ -189,3 +173,4 @@ ENV PATH $GEM_HOME/bin:$PATH
 RUN mkdir -p "$GEM_HOME" && chmod 1777 "$GEM_HOME"
 
 CMD [ "irb" ]
+

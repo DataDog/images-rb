@@ -58,7 +58,6 @@ RUN mkdir -p "$GEM_HOME" "$BUNDLE_BIN" \
 
 ## Install a pinned RubyGems and Bundler
 RUN gem update --system 3.5.21
-RUN gem install bundler:2.3.26
 
 # Install additional gems that are in CRuby but missing from the above
 # JRuby install distribution. These are version-pinned for reproducibility.
