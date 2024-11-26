@@ -230,6 +230,8 @@ jobs:
           echo "DOCKER_PLATFORMS=$(echo ${{ join(matrix.arch) }} | tr ',' '\n' | sed 's/^/linux\//' | paste -s -d, -)" >> $GITHUB_OUTPUT
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       # First, build image for x86_64 as it will fail fast
       #
