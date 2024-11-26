@@ -15,8 +15,13 @@ namespace :docker do
       dockerfile = f
       context = File.dirname(dockerfile)
 
-      image = "#{repository}/#{File.dirname(f.sub(/^src\//, "").sub(/\/Dockerfile(.*)/, ""))}"
-      tag = f.sub(/.*\/(\d+(?:\.\d+))+\//, "\\1").sub(/Dockerfile(.*)$/) { |m| m.sub("Dockerfile", "").tr(".", "-") }
+      if (m = context.match(/\/((?:v?)\d+(?:\.\d+|$)+)$/))
+        tag = m[1] + File.basename(dockerfile).sub(/Dockerfile(?:.*)$/) { |m| m.sub("Dockerfile", "").tr(".", "-") }
+        image = "#{repository}/#{File.dirname(context).sub(/^src\//, "")}"
+      else
+        tag = "latest"
+        image = "#{repository}/#{context.sub(/^src\//, "")}".sub(/Dockerfile(?:.*)$/) { |m| m.sub("Dockerfile", "").tr(".", "-") }
+      end
 
       targets = [
         {
