@@ -206,6 +206,8 @@ jobs:
             libc: centos
             arch: ["x86_64", "aarch64"]
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
     name: Build (${{ matrix.engine }} ${{ matrix.version }} ${{ matrix.libc }})
     steps:
       - name: Set up Docker
