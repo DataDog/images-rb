@@ -48,6 +48,9 @@ jobs:
         with:
           source-url: https://github.com/DeterminateSystems/nix-installer/releases/download/v0.30.0/nix-installer-${{ matrix.platform.nix-installer.platform }}
       - uses: DeterminateSystems/magic-nix-cache-action@v8
+      - name: Print Nix version
+        run: |
+          nix --version
       - name: Print ruby version
         run: |
           nix develop --command which ruby
