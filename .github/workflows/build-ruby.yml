@@ -400,7 +400,7 @@ jobs:
 
       # TODO: hardcoded, reuse append-tags directive instead (or better, unify gnu+centos)
       - name: Push commit compiler image (${{ join(matrix.arch, ', ') }})
-        if: ${{ inputs.push && (matrix.libc == 'gnu' || matrix.libc == 'centos') }}
+        if: ${{ matrix.libc == 'gnu' || matrix.libc == 'centos' }}
         run: |
           cache_from=()
           parents="$(git rev-list --parents -n 1 ${{ github.sha }})"
@@ -422,7 +422,7 @@ jobs:
 
       # TODO: hardcoded musl, unify gnu instead
       - name: Push commit compiler image (${{ join(matrix.arch, ', ') }})
-        if: ${{ inputs.push && matrix.libc == 'musl' }}
+        if: ${{ matrix.libc == 'musl' }}
         run: |
           cache_from=()
           parents="$(git rev-list --parents -n 1 ${{ github.sha }})"
