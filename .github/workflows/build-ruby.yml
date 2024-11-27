@@ -211,7 +211,7 @@ jobs:
     name: Build (${{ matrix.engine }} ${{ matrix.version }} ${{ matrix.libc }})
     steps:
       - name: Set up Docker
-        uses: crazy-max/ghaction-setup-docker@v3
+        uses: crazy-max/ghaction-setup-docker@635d07c09dc2b52072362e9bb37e7e789767106d
         with:
           daemon-config: |
             {
@@ -229,7 +229,7 @@ jobs:
           echo "DOCKERFILE=src/engines/${{ matrix.engine }}/${{ matrix.version }}/Dockerfile.${{ matrix.libc }}" >> $GITHUB_OUTPUT
           echo "DOCKER_PLATFORMS=$(echo ${{ join(matrix.arch) }} | tr ',' '\n' | sed 's/^/linux\//' | paste -s -d, -)" >> $GITHUB_OUTPUT
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
 
