@@ -70,7 +70,7 @@ RUN true "${REPRO_RUN_KEY}" && yum makecache -y
 # fun: CentOS 8 has `yum list glibc-langpack-\*` but not CentOS 7 :'(
 RUN yum reinstall -y glibc-common
 
-RUN yum install -y curl gcc make
+RUN yum install -y curl gcc make patch git
 
 # fun: this has to be after `yum install curl gcc make`... but only on aarch64; go figure
 # extra fun: table is botched, localedef not happy, swallow result and test `locale` for errors
@@ -96,7 +96,7 @@ ENV LANG="en_US.UTF-8"                                                          
 RUN <<SHELL
 set -euxo pipefail
 
-yum install -y xz gcc automake bison zlib-devel libyaml-devel openssl-devel gdbm-devel readline-devel ncurses-devel libffi-devel patch
+yum install -y xz gcc automake bison zlib-devel libyaml-devel openssl-devel gdbm-devel readline-devel ncurses-devel libffi-devel
 
 curl -L -o ruby.tar.gz "https://github.com/ruby/ruby/archive/f48ae0d10c5b586db5748b0d4b645c7e9ff5d52e.tar.gz"
 echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.gz" | sha256sum --check --strict
