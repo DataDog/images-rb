@@ -1,0 +1,63 @@
+name: Test Nix
+
+on:
+  push:
+    branches:
+      - "**"
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - os: darwin
+            cpu: x86_64
+            base: macos-13 # always x86_64-darwin
+            nix-installer:
+              platform: x86_64-darwin
+          - os: darwin
+            cpu: arm64
+            base: macos-14 # always arm64-darwin
+            nix-installer:
+              platform: aarch64-darwin
+          - os: linux
+            cpu: x86_64
+            base: ubuntu-24.04 # always x86_64-linux-gnu
+            nix-installer:
+              platform: x86_64-linux
+          - os: linux
+            cpu: aarch64
+            base: arm-4core-linux-ubuntu24.04 # always aarch64-linux-gnu
+            nix-installer:
+              platform: aarch64-linux
+
+    name: Test Nix (${{ matrix.platform.cpu }}-${{ matrix.platform.os }})
+    runs-on: ${{ matrix.platform.base }}
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Check CPU arch
+        run: |
+          test "$(uname -m)" = "${{ matrix.platform.cpu }}"
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: DeterminateSystems/nix-installer-action@e50d5f73bfe71c2dd0aa4218de8f4afa59f8f81d
+        with:
+          source-url: https://github.com/DeterminateSystems/nix-installer/releases/download/v0.30.0/nix-installer-${{ matrix.platform.nix-installer.platform }}
+      - uses: DeterminateSystems/magic-nix-cache-action@87b14cf437d03d37989d87f0fa5ce4f5dc1a330b
+      - name: Print Nix version
+        run: |
+          nix --version
+      - name: Print ruby version
+        run: |
+          nix develop --command which ruby
+          nix develop --command ruby --version
+      - name: Bundle install
+        run: nix develop --command bundle install
+      - name: Run tests
+        run: nix develop --command bundle exec rake docker:list
