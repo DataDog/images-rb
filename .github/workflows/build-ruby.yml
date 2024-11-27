@@ -8,9 +8,7 @@ on:
         required: true
         type: boolean
         default: true
-  push:
-    branches:
-      - "**"
+  workflow_call:
 
 env:
   REGISTRY: ghcr.io
