@@ -428,9 +428,11 @@ jobs:
           parents="$(git rev-list --parents -n 1 ${{ github.sha }})"
           for sha in $parents; do
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
+            cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
+          docker image rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}
           docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${{ github.sha }}
       - name: Push release compiler image (${{ join(matrix.arch, ', ') }})
         if: ${{ inputs.push && matrix.libc == 'musl' }}
@@ -439,7 +441,9 @@ jobs:
           parents="$(git rev-list --parents -n 1 ${{ github.sha }})"
           for sha in $parents; do
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
+            cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
+          docker image rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}
           docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc
