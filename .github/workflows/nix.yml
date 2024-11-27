@@ -23,10 +23,8 @@ jobs:
           - os: linux
             cpu: aarch64
             base: arm-4core-linux-ubuntu24.04 # always aarch64-linux-gnu
-        nix:
-          - 24.05
 
-    name: Test Nix (${{ matrix.platform.cpu }}-${{ matrix.platform.os }}, ${{ matrix.nix }})
+    name: Test Nix (${{ matrix.platform.cpu }}-${{ matrix.platform.os }})
     runs-on: ${{ matrix.platform.base }}
 
     permissions:
