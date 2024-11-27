@@ -44,6 +44,8 @@ jobs:
         run: |
           test "$(uname -m)" = "${{ matrix.platform.cpu }}"
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: DeterminateSystems/nix-installer-action@v16
         with:
           source-url: https://github.com/DeterminateSystems/nix-installer/releases/download/v0.30.0/nix-installer-${{ matrix.platform.nix-installer.platform }}
