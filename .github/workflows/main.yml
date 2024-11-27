@@ -1,0 +1,31 @@
+name: Main
+
+on:
+  push:
+    branches:
+      - "**"
+
+jobs:
+  build:
+    name: Build
+    uses: ./.github/workflows/build-ruby.yml
+    permissions:
+      packages: write
+
+  nix:
+    name: Nix
+    uses: ./.github/workflows/nix.yml
+    permissions:
+      contents: read
+      id-token: write
+
+  success:
+    name: Success
+    needs:
+      - build
+      - nix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Success
+        run: |
+          true

@@ -1,9 +1,7 @@
 name: Test Nix
 
 on:
-  push:
-    branches:
-      - "**"
+  workflow_call:
 
 jobs:
   test:
