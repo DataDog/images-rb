@@ -14,15 +14,23 @@ jobs:
           - os: darwin
             cpu: x86_64
             base: macos-13 # always x86_64-darwin
+            nix-installer:
+              platform: x86_64-darwin
           - os: darwin
             cpu: arm64
             base: macos-14 # always arm64-darwin
+            nix-installer:
+              platform: aarch64-darwin
           - os: linux
             cpu: x86_64
             base: ubuntu-24.04 # always x86_64-linux-gnu
+            nix-installer:
+              platform: x86_64-linux
           - os: linux
             cpu: aarch64
             base: arm-4core-linux-ubuntu24.04 # always aarch64-linux-gnu
+            nix-installer:
+              platform: aarch64-linux
 
     name: Test Nix (${{ matrix.platform.cpu }}-${{ matrix.platform.os }})
     runs-on: ${{ matrix.platform.base }}
@@ -37,6 +45,8 @@ jobs:
           test "$(uname -m)" = "${{ matrix.platform.cpu }}"
       - uses: actions/checkout@v4
       - uses: DeterminateSystems/nix-installer-action@v16
+        with:
+          source-url: https://github.com/DeterminateSystems/nix-installer/releases/download/v0.30.0/nix-installer-${{ matrix.platform.nix-installer.platform }}
       - uses: DeterminateSystems/magic-nix-cache-action@v8
       - name: Print ruby version
         run: |
