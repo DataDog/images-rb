@@ -242,6 +242,7 @@ jobs:
           cache_from=()
           parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
+            echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
@@ -252,6 +253,7 @@ jobs:
           cache_from=()
           parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
+            echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
@@ -273,6 +275,7 @@ jobs:
           cache_from=()
           parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
+            echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
@@ -283,6 +286,7 @@ jobs:
           cache_from=()
           parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
+            echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
@@ -304,6 +308,7 @@ jobs:
           cache_from=()
           parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
+            echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
@@ -314,6 +319,7 @@ jobs:
           cache_from=()
           parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
+            echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
@@ -335,6 +341,7 @@ jobs:
           cache_from=()
           parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
+            echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
@@ -345,6 +352,7 @@ jobs:
           cache_from=()
           parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
+            echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
@@ -362,6 +370,7 @@ jobs:
           cache_from=()
           parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
+            echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
@@ -371,6 +380,7 @@ jobs:
           cache_from=()
           parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
+            echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
@@ -381,6 +391,7 @@ jobs:
           cache_from=()
           parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
+            echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
@@ -393,6 +404,7 @@ jobs:
           cache_from=()
           parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
+            echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
@@ -405,6 +417,7 @@ jobs:
           cache_from=()
           parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
+            echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
@@ -415,6 +428,7 @@ jobs:
           cache_from=()
           parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
+            echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
@@ -431,6 +445,7 @@ jobs:
           cache_from=()
           parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
+            echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
@@ -443,6 +458,7 @@ jobs:
           cache_from=()
           parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
+            echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
