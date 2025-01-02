@@ -1,4 +1,4 @@
-FROM ruby:3.4-rc-alpine
+FROM ruby:3.4.1-alpine
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
 # variability: an identical command would be the same from `docker build`'s
