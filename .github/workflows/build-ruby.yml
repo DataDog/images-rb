@@ -203,7 +203,7 @@ jobs:
             version: "3.4"
             libc: centos
             arch: ["x86_64", "aarch64"]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       packages: write
     name: Build (${{ matrix.engine }} ${{ matrix.version }} ${{ matrix.libc }})
