@@ -40,7 +40,8 @@ namespace :docker do
           dockerfile: dockerfile,
           context: context,
           image: image,
-          tag: stripped_tag
+          tag: stripped_tag,
+          aliasing: tag
         }
       end
 
@@ -51,7 +52,8 @@ namespace :docker do
             dockerfile: dockerfile,
             context: context,
             image: image,
-            tag: "#{tag}-#{t}"
+            tag: "#{tag}-#{t}",
+            aliasing: tag
           }
         end
       end
