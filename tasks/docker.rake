@@ -191,13 +191,25 @@ namespace :docker do
     end
   end
 
+  desc <<~DESC
+    List image targets.
+
+    Accepts globs as argument, e.g 'list[**:*]' will show everything.
+  DESC
   task :list do |_, args|
     targets_for(args).each do |image|
       puts "#{image[:image]}:#{image[:tag]}"
     end
   end
 
-  desc "Pull image."
+  desc <<~DESC
+    Pull image(s).
+
+    Accepts globs as argument, e.g 'pull[**:*]' will pull everything.
+
+    Considers these env vars:
+    - PLATFORM=linux/x86_64: platform to pull. Defaults to current system platform.
+  DESC
   task :pull do |_, args|
     targets = targets_for(args)
 
@@ -210,7 +222,16 @@ namespace :docker do
     end
   end
 
-  desc "Build image."
+  desc <<~DESC
+    Build image(s).
+
+    Accepts globs as argument, e.g 'build[**:*]' will build everything.
+
+    Considers these env vars:
+    - PLATFORM=linux/x86_64,linux/aarch64: comma-separated list of platforms to build for. Defaults to current system platform. Building multiplatform requires containerd Docker storage driver.
+    - FORCE=true: act as if dependencies were obsolete.
+    - PUSH=true: build and push to image registry.
+  DESC
   task :build do |_, args|
     targets = targets_for(args)
 
@@ -251,7 +272,14 @@ namespace :docker do
     end
   end
 
-  desc "Run container with default CMD."
+  desc <<~DESC
+    Run container with default CMD.
+
+    Accepts globs as argument, e.g 'cmd[**:*]', but fails with more than one match.
+
+    Considers these env vars:
+    - PLATFORM=linux/x86_64: platform to run. Defaults to current system platform.
+  DESC
   task cmd: :build do |_, args|
     target = target_for(args)
 
@@ -262,7 +290,14 @@ namespace :docker do
     exec "docker run --rm -it --platform #{platform} -v #{Dir.pwd}:#{Dir.pwd} -w #{Dir.pwd} #{image}:#{tag}"
   end
 
-  desc "Run container with shell."
+  desc <<~DESC
+    Run container with shell.
+
+    Accepts globs as argument, e.g 'shell[**:*]', but fails with more than one match.
+
+    Considers these env vars:
+    - PLATFORM=linux/x86_64: platform to run. Defaults to current system platform.
+  DESC
   task shell: :build do |_, args|
     target = target_for(args)
 
@@ -273,7 +308,14 @@ namespace :docker do
     exec "docker run --rm -it --platform #{platform} -v #{Dir.pwd}:#{Dir.pwd} -w #{Dir.pwd} #{image}:#{tag} /bin/sh"
   end
 
-  desc "Run container with irb."
+  desc <<~DESC
+    Run container with shell.
+
+    Accepts globs as argument, e.g 'irb[**:*]', but fails with more than one match.
+
+    Considers these env vars:
+    - PLATFORM=linux/x86_64: platform to run. Defaults to current system platform.
+  DESC
   task irb: :build do |_, args|
     target = target_for(args)
 
