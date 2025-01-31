@@ -141,7 +141,16 @@ namespace :docker do
     end.reduce(:&)
   end
 
-  def docker_platform
+  PLATFORMS = [
+    "linux/x86_64",
+    "linux/aarch64"
+  ]
+
+  def docker_platforms
+    if (p = ENV["PLATFORM"])
+      return p.split(",")
+    end
+
     if RUBY_PLATFORM =~ /^(?:universal\.|)(x86_64|aarch64|arm64)/
       cpu = $1.sub(/arm64(:?e|)/, "aarch64")
     else
@@ -150,7 +159,11 @@ namespace :docker do
 
     os = "linux"
 
-    "#{os}/#{cpu}"
+    ["#{os}/#{cpu}"]
+  end
+
+  def docker_platform
+    docker_platforms.tap { |a| a.size > 1 and fail "multiple platforms passed to task" }.first
   end
 
   def image_time(image)
@@ -207,6 +220,7 @@ namespace :docker do
       context = target[:context]
       image = target[:image]
       tag = target[:tag]
+      platforms = docker_platforms
       push = ENV["PUSH"] == "true"
       force = ENV["FORCE"] == "true"
 
@@ -218,16 +232,23 @@ namespace :docker do
         File.read(dep).lines.select { |l| l =~ /^\s*#\s*platforms:/ }.map { |l| l =~ /platforms: (.*)/ && $1 }
       end.flatten
 
-      if compatible_platforms.any? && !compatible_platforms.include?(platform)
+      if compatible_platforms.any?
+        incompatible_platforms = platforms - compatible_platforms
+        incompatible_platforms.each do |platform|
         warn "skip build: dockerfile: #{dockerfile.inspect}, incompatible platform: #{platform.inspect}, compatible platforms: #{compatible_platforms.inspect}"
-        next
+        end
+
+        platforms -= incompatible_platforms
       end
 
+      next if platforms.empty?
+
+      # TODO: consider platforms for dependencies as well
       local_dependencies[dockerfile].each { |dep| Rake::Task[:"docker:build"].execute(Rake::TaskArguments.new([], [dep])) }
 
       next if !force && satisfied?(-> { image_time("#{image}:#{tag}") }, deps)
 
-      sh "docker buildx build --platform #{platform} --cache-from=type=registry,ref=#{image}:#{tag} --output=type=image,push=#{push} --build-arg SOURCE_DATE_EPOCH=#{source_date_epoch} --build-arg BUILDKIT_INLINE_CACHE=1 -f #{dockerfile} -t #{image}:#{tag} #{context}"
+      sh "docker buildx build --platform #{platforms.join(",")} --cache-from=type=registry,ref=#{image}:#{tag} --output=type=image,push=#{push} --build-arg SOURCE_DATE_EPOCH=#{source_date_epoch} --build-arg BUILDKIT_INLINE_CACHE=1 -f #{dockerfile} -t #{image}:#{tag} #{context}"
     end
   end
 
