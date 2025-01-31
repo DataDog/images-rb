@@ -286,6 +286,22 @@ namespace :docker do
   end
 
   desc <<~DESC
+    Remove image(s).
+
+    Accepts globs as argument, e.g 'remove[**:*]' will remove everything.
+  DESC
+  task :remove do |_, args|
+    targets = targets_for(args)
+
+    targets.each do |target|
+      image = target[:image]
+      tag = target[:tag]
+
+      sh "docker image rm #{image}:#{tag} || true"
+    end
+  end
+
+  desc <<~DESC
     Run container with default CMD.
 
     Accepts globs as argument, e.g 'cmd[**:*]', but fails with more than one match.
