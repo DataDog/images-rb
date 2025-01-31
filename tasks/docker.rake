@@ -6,6 +6,13 @@
 # See: https://github.com/ruby/rake/blob/03cb03474b4eb008b2d62ad96d07de0d6239c7ab/lib/rake/file_task.rb#L16
 
 namespace :docker do
+  # 1980-01-01 00:00:00 UTC
+  NINETYEIGHTY = 315532800
+
+  def source_date_epoch
+    NINETYEIGHTY
+  end
+
   def repository # TODO: rename to registry/registry host/user/path
     "ghcr.io/datadog/images-rb"
   end
@@ -15,13 +22,21 @@ namespace :docker do
       dockerfile = f
       context = File.dirname(dockerfile)
 
-      image = "#{repository}/#{File.dirname(f.sub(/^src\//, "").sub(/\/Dockerfile(.*)/, ""))}"
-      tag = f.sub(/.*\/(\d+(?:\.\d+))+\//, "\\1").sub(/Dockerfile(.*)$/) { |m| m.sub("Dockerfile", "").tr(".", "-") }
+      if (m = context.match(/\/((?:v?)\d+(?:\.\d+|$)+)$/))
+        tag = m[1] + File.basename(dockerfile).sub(/Dockerfile(?:.*)$/) { |m| m.sub("Dockerfile", "").tr(".", "-") }
+        image = "#{repository}/#{File.dirname(context).sub(/^src\//, "")}"
+      else
+        tag = "latest"
+        image = "#{repository}/#{context.sub(/^src\//, "")}".sub(/Dockerfile(?:.*)$/) { |m| m.sub("Dockerfile", "").tr(".", "-") }
+      end
+
+      platforms = File.read(dockerfile).lines.select { |l| l =~ /^\s*#\s*platforms:/ }.map { |l| l =~ /platforms: (.*)/ && $1 }
 
       targets = [
         {
           dockerfile: dockerfile,
           context: context,
+          platforms: platforms,
           image: image, # TODO: rename to repository
           tag: tag
           # TODO: rename to image/tag/tagged_image/name/alias: "#{repo}:#{tag}"
@@ -34,8 +49,10 @@ namespace :docker do
         targets << {
           dockerfile: dockerfile,
           context: context,
+          platforms: platforms,
           image: image,
-          tag: stripped_tag
+          tag: stripped_tag,
+          aliasing: tag
         }
       end
 
@@ -45,8 +62,10 @@ namespace :docker do
           targets << {
             dockerfile: dockerfile,
             context: context,
+            platforms: platforms,
             image: image,
-            tag: "#{tag}-#{t}"
+            tag: "#{tag}-#{t}",
+            aliasing: tag
           }
         end
       end
@@ -77,6 +96,8 @@ namespace :docker do
 
   def targets_for(args)
     images = args.to_a
+
+    images = ["**:*"] if images.empty?
 
     images.map do |image|
       image = "#{repository}/#{image}" unless image.start_with?(repository)
@@ -122,7 +143,16 @@ namespace :docker do
     end.reduce(:&)
   end
 
-  def docker_platform
+  PLATFORMS = [
+    "linux/x86_64",
+    "linux/aarch64"
+  ]
+
+  def docker_platforms
+    if (p = ENV["PLATFORM"])
+      return p.split(",")
+    end
+
     if RUBY_PLATFORM =~ /^(?:universal\.|)(x86_64|aarch64|arm64)/
       cpu = $1.sub(/arm64(:?e|)/, "aarch64")
     else
@@ -131,13 +161,17 @@ namespace :docker do
 
     os = "linux"
 
-    "#{os}/#{cpu}"
+    ["#{os}/#{cpu}"]
+  end
+
+  def docker_platform
+    docker_platforms.tap { |a| a.size > 1 and fail "multiple platforms passed to task" }.first
   end
 
   def image_time(image)
     require "time"
 
-    last_tag_time = `docker image inspect -f '{{ .Metadata.LastTagTime }}' '#{image}'`.chomp
+    last_tag_time = `docker image inspect -f '{{ .Metadata.LastTagTime }}' '#{image}' 2>/dev/null`.chomp
 
     if $?.to_i == 0
       # "0001-01-01 00:00:00 +0000 UTC"
@@ -150,7 +184,7 @@ namespace :docker do
   def volume_time(volume)
     require "time"
 
-    volume_creation_time = `docker volume inspect -f '{{ .CreatedAt }}' '#{volume}'`.chomp
+    volume_creation_time = `docker volume inspect -f '{{ .CreatedAt }}' '#{volume}' 2>/dev/null`.chomp
 
     if $?.to_i == 0
       volume_creation_time.sub!(/^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})(\s+)/, "\\1.0\\2")
@@ -159,14 +193,38 @@ namespace :docker do
     end
   end
 
-  desc "List image targets."
-  task :list do
-    targets.each do |image|
+  desc <<~DESC
+    List image targets.
+
+    Accepts globs as argument, e.g 'list[**:*]' will show everything.
+  DESC
+  task :list do |_, args|
+    targets_for(args).each do |image|
       puts "#{image[:image]}:#{image[:tag]}"
     end
   end
 
-  desc "Pull image."
+  namespace :list do
+    desc <<~DESC
+      List detailed image targets as JSON.
+
+      Accepts globs as argument, e.g 'list:json[**:*]' will show everything.
+    DESC
+    task :json do |_, args|
+      require "json"
+
+      puts JSON.pretty_generate(targets_for(args))
+    end
+  end
+
+  desc <<~DESC
+    Pull image(s).
+
+    Accepts globs as argument, e.g 'pull[**:*]' will pull everything.
+
+    Considers these env vars:
+    - PLATFORM=linux/x86_64: platform to pull. Defaults to current system platform.
+  DESC
   task :pull do |_, args|
     targets = targets_for(args)
 
@@ -179,7 +237,16 @@ namespace :docker do
     end
   end
 
-  desc "Build image."
+  desc <<~DESC
+    Build image(s).
+
+    Accepts globs as argument, e.g 'build[**:*]' will build everything.
+
+    Considers these env vars:
+    - PLATFORM=linux/x86_64,linux/aarch64: comma-separated list of platforms to build for. Defaults to current system platform. Building multiplatform requires containerd Docker storage driver.
+    - FORCE=true: act as if dependencies were obsolete.
+    - PUSH=true: build and push to image registry.
+  DESC
   task :build do |_, args|
     targets = targets_for(args)
 
@@ -188,7 +255,9 @@ namespace :docker do
       context = target[:context]
       image = target[:image]
       tag = target[:tag]
-      platform = docker_platform
+      platforms = docker_platforms
+      push = ENV["PUSH"] == "true"
+      force = ENV["FORCE"] == "true"
 
       deps = [
         dockerfile
@@ -198,20 +267,50 @@ namespace :docker do
         File.read(dep).lines.select { |l| l =~ /^\s*#\s*platforms:/ }.map { |l| l =~ /platforms: (.*)/ && $1 }
       end.flatten
 
-      if compatible_platforms.any? && !compatible_platforms.include?(platform)
+      if compatible_platforms.any?
+        incompatible_platforms = platforms - compatible_platforms
+        incompatible_platforms.each do |platform|
         warn "skip build: dockerfile: #{dockerfile.inspect}, incompatible platform: #{platform.inspect}, compatible platforms: #{compatible_platforms.inspect}"
-        next
+        end
+
+        platforms -= incompatible_platforms
       end
 
+      next if platforms.empty?
+
+      # TODO: consider platforms for dependencies as well
       local_dependencies[dockerfile].each { |dep| Rake::Task[:"docker:build"].execute(Rake::TaskArguments.new([], [dep])) }
 
-      next if satisfied?(-> { image_time("#{image}:#{tag}") }, deps)
+      next if !force && satisfied?(-> { image_time("#{image}:#{tag}") }, deps)
 
-      sh "docker buildx build --platform #{platform} --cache-from=type=registry,ref=#{image}:#{tag} -f #{dockerfile} -t #{image}:#{tag} #{context}"
+      sh "docker buildx build --platform #{platforms.join(",")} --cache-from=type=registry,ref=#{image}:#{tag} --output=type=image,push=#{push} --build-arg SOURCE_DATE_EPOCH=#{source_date_epoch} --build-arg BUILDKIT_INLINE_CACHE=1 -f #{dockerfile} -t #{image}:#{tag} #{context}"
     end
   end
 
-  desc "Run container with default CMD."
+  desc <<~DESC
+    Remove image(s).
+
+    Accepts globs as argument, e.g 'remove[**:*]' will remove everything.
+  DESC
+  task :remove do |_, args|
+    targets = targets_for(args)
+
+    targets.each do |target|
+      image = target[:image]
+      tag = target[:tag]
+
+      sh "docker image rm #{image}:#{tag} || true"
+    end
+  end
+
+  desc <<~DESC
+    Run container with default CMD.
+
+    Accepts globs as argument, e.g 'cmd[**:*]', but fails with more than one match.
+
+    Considers these env vars:
+    - PLATFORM=linux/x86_64: platform to run. Defaults to current system platform.
+  DESC
   task cmd: :build do |_, args|
     target = target_for(args)
 
@@ -222,7 +321,14 @@ namespace :docker do
     exec "docker run --rm -it --platform #{platform} -v #{Dir.pwd}:#{Dir.pwd} -w #{Dir.pwd} #{image}:#{tag}"
   end
 
-  desc "Run container with shell."
+  desc <<~DESC
+    Run container with shell.
+
+    Accepts globs as argument, e.g 'shell[**:*]', but fails with more than one match.
+
+    Considers these env vars:
+    - PLATFORM=linux/x86_64: platform to run. Defaults to current system platform.
+  DESC
   task shell: :build do |_, args|
     target = target_for(args)
 
@@ -233,7 +339,14 @@ namespace :docker do
     exec "docker run --rm -it --platform #{platform} -v #{Dir.pwd}:#{Dir.pwd} -w #{Dir.pwd} #{image}:#{tag} /bin/sh"
   end
 
-  desc "Run container with irb."
+  desc <<~DESC
+    Run container with shell.
+
+    Accepts globs as argument, e.g 'irb[**:*]', but fails with more than one match.
+
+    Considers these env vars:
+    - PLATFORM=linux/x86_64: platform to run. Defaults to current system platform.
+  DESC
   task irb: :build do |_, args|
     target = target_for(args)
 

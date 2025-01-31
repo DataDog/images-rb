@@ -1,0 +1,102 @@
+name: Build Services
+
+on:
+  workflow_dispatch:
+    inputs:
+      push:
+        description: Push images
+        required: true
+        type: boolean
+        default: true
+  workflow_call:
+
+env:
+  REGISTRY: ghcr.io
+  REPO: datadog/images-rb
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: datadog/agent
+            arch: ["x86_64", "aarch64"]
+          - service: datadog/dd-apm-test-agent
+            arch: ["x86_64", "aarch64"]
+          - service: elasticsearch
+            arch: ["x86_64", "aarch64"]
+          - service: memcached
+            arch: ["x86_64", "aarch64"]
+          - service: mongo
+            arch: ["x86_64", "aarch64"]
+          - service: mysql
+            arch: ["x86_64", "aarch64"]
+          - service: opensearchproject/opensearch
+            arch: ["x86_64", "aarch64"]
+          - service: postgres
+            arch: ["x86_64", "aarch64"]
+          - service: redis
+            arch: ["x86_64", "aarch64"]
+          - service: starburstdata/presto
+            arch: ["x86_64", "aarch64"]
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    name: Build (${{ matrix.service }})
+    steps:
+      - name: Set up Docker
+        uses: crazy-max/ghaction-setup-docker@635d07c09dc2b52072362e9bb37e7e789767106d
+        with:
+          daemon-config: |
+            {
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@2654679fe7f7c29875c669398a8ec0791b8a64a1
+        with:
+          ruby-version: '3.4'
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Bundle install
+        run: |
+          bundle install
+      - name: Set variables
+        id: vars
+        run: |
+          echo "DOCKER_PLATFORMS=$(echo ${{ join(matrix.arch) }} | tr ',' '\n' | sed 's/^/linux\//' | paste -s -d, -)" >> $GITHUB_OUTPUT
+
+      # First, build image for x86_64 as it will fail fast
+      #
+      - name: Build single-arch image (x86_64)
+        if: ${{ contains(matrix.arch, 'x86_64') }}
+        run: |
+          bundle exec rake docker:build['services/${{ matrix.service }}:*'] PLATFORM='linux/x86_64'
+
+      # Then, build image for aarch64 which, being emulated under qemu, is slower
+      #
+      # Start by enabling qemu for aarch64
+      - name: Enable aarch64 emulation (x86_64)
+        if: ${{ contains(matrix.arch, 'aarch64') }}
+        run: |
+          docker run --privileged --rm tonistiigi/binfmt --install arm64
+      - name: Build single-arch image (aarch64)
+        if: ${{ contains(matrix.arch, 'aarch64') }}
+        run: |
+          bundle exec rake docker:build['services/${{ matrix.service }}:*'] PLATFORM='linux/aarch64'
+
+      # Finally, assemble multi-arch image for a combined push to the registry
+      #
+      # This reruns docker build but layers are in the cache, so it's fast
+      - name: Log in to the Container Registry
+        run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+      - name: Push release image (${{ join(matrix.arch, ', ') }})
+        if: ${{ inputs.push }}
+        run: |
+          bundle exec rake docker:build['services/${{ matrix.service }}:*'] PLATFORM='${{ steps.vars.outputs.DOCKER_PLATFORMS }}' PUSH=true

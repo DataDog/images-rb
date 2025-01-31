@@ -10,6 +10,7 @@ Use cases include:
 
 - having a consistent set of images to build other images from
 - providing base images for CI usage and testing as well as local development
+- providing service images for integration with testing suites
 - providing minimal app images using various frameworks for CI testing (integration, system tests), issue reproduction, support engineers, pentesters...
 - making CI runtime environment reproducinble locally
 - hastening image building and fetching by mutualising commonality
@@ -19,19 +20,22 @@ Use cases include:
 
 ### Ruby engines
 
+Directory: `src/engines`
+
 Supported engines include:
 
 - `ruby`: MRI a.k.a CRuby.
 - `jruby`: These are based on Eclise Temurin JDK builds.
 - `truffleruby`: Due to the nature and state of TruffleRuby these are experimental and may or may not work as expected.
 
-### Apps
+Tag naming acts as a contract and conveys intended usage:
 
-#### minimal-rack
+- If you expect a compiler use `-gcc` or `-clang` tags; images withotu this do not guarantee presence of a compiler.
+- If you expect a certain libc (variant or version), use the appropriate `-musl`, -gnu` (glibc), or `-centos` (old glibc) tags.
+- "Naked" version tags give you that specific runtime, but assume no specific Linux distribution, libc version or variant, and no compiler.
 
-These images provide a set of minimal rack-based applications covering a range of frameworks and versions:
+### Services
 
-- `rack` 1.3 to 3 and up
-- `rails` 3.2 to 7 and up
-- `sinatra` 1.0 to 4 and up
-- `grape` 1.2 to 4 and up
+Directory: `src/services`
+
+Service images are intended to provide known, fixed behaviour for test suites.

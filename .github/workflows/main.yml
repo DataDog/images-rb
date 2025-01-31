@@ -6,8 +6,14 @@ on:
       - "**"
 
 jobs:
-  build:
-    name: Build
+  build-services:
+    name: Build Services
+    uses: ./.github/workflows/build-services.yml
+    permissions:
+      packages: write
+
+  build-ruby:
+    name: Build Ruby
     uses: ./.github/workflows/build-ruby.yml
     permissions:
       packages: write
@@ -22,7 +28,8 @@ jobs:
   success:
     name: Success
     needs:
-      - build
+      - build-services
+      - build-ruby
       - nix
     runs-on: ubuntu-24.04
     steps:
