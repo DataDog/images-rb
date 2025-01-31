@@ -191,9 +191,8 @@ namespace :docker do
     end
   end
 
-  desc "List image targets."
-  task :list do
-    targets.each do |image|
+  task :list do |_, args|
+    targets_for(args).each do |image|
       puts "#{image[:image]}:#{image[:tag]}"
     end
   end
