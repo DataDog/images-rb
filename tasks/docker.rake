@@ -6,6 +6,13 @@
 # See: https://github.com/ruby/rake/blob/03cb03474b4eb008b2d62ad96d07de0d6239c7ab/lib/rake/file_task.rb#L16
 
 namespace :docker do
+  # 1980-01-01 00:00:00 UTC
+  NINETYEIGHTY = 315532800
+
+  def source_date_epoch
+    NINETYEIGHTY
+  end
+
   def repository # TODO: rename to registry/registry host/user/path
     "ghcr.io/datadog/images-rb"
   end
@@ -219,7 +226,7 @@ namespace :docker do
 
       next if satisfied?(-> { image_time("#{image}:#{tag}") }, deps)
 
-      sh "docker buildx build --platform #{platform} --cache-from=type=registry,ref=#{image}:#{tag} --build-arg BUILDKIT_INLINE_CACHE=1 -f #{dockerfile} -t #{image}:#{tag} #{context}"
+      sh "docker buildx build --platform #{platform} --cache-from=type=registry,ref=#{image}:#{tag} --build-arg SOURCE_DATE_EPOCH=#{source_date_epoch} --build-arg BUILDKIT_INLINE_CACHE=1 -f #{dockerfile} -t #{image}:#{tag} #{context}"
     end
   end
 
