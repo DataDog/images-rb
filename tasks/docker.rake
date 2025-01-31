@@ -207,7 +207,7 @@ namespace :docker do
       context = target[:context]
       image = target[:image]
       tag = target[:tag]
-      platform = docker_platform
+      push = ENV["PUSH"] == "true"
 
       deps = [
         dockerfile
@@ -226,7 +226,7 @@ namespace :docker do
 
       next if satisfied?(-> { image_time("#{image}:#{tag}") }, deps)
 
-      sh "docker buildx build --platform #{platform} --cache-from=type=registry,ref=#{image}:#{tag} --build-arg SOURCE_DATE_EPOCH=#{source_date_epoch} --build-arg BUILDKIT_INLINE_CACHE=1 -f #{dockerfile} -t #{image}:#{tag} #{context}"
+      sh "docker buildx build --platform #{platform} --cache-from=type=registry,ref=#{image}:#{tag} --output=type=image,push=#{push} --build-arg SOURCE_DATE_EPOCH=#{source_date_epoch} --build-arg BUILDKIT_INLINE_CACHE=1 -f #{dockerfile} -t #{image}:#{tag} #{context}"
     end
   end
 
