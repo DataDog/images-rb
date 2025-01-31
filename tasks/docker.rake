@@ -169,7 +169,7 @@ namespace :docker do
   def image_time(image)
     require "time"
 
-    last_tag_time = `docker image inspect -f '{{ .Metadata.LastTagTime }}' '#{image}'`.chomp
+    last_tag_time = `docker image inspect -f '{{ .Metadata.LastTagTime }}' '#{image}' 2>/dev/null`.chomp
 
     if $?.to_i == 0
       # "0001-01-01 00:00:00 +0000 UTC"
@@ -182,7 +182,7 @@ namespace :docker do
   def volume_time(volume)
     require "time"
 
-    volume_creation_time = `docker volume inspect -f '{{ .CreatedAt }}' '#{volume}'`.chomp
+    volume_creation_time = `docker volume inspect -f '{{ .CreatedAt }}' '#{volume}' 2>/dev/null`.chomp
 
     if $?.to_i == 0
       volume_creation_time.sub!(/^(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})(\s+)/, "\\1.0\\2")
