@@ -202,6 +202,19 @@ namespace :docker do
     end
   end
 
+  namespace :list do
+    desc <<~DESC
+      List detailed image targets as JSON.
+
+      Accepts globs as argument, e.g 'list:json[**:*]' will show everything.
+    DESC
+    task :json do |_, args|
+      require "json"
+
+      puts JSON.pretty_generate(targets_for(args))
+    end
+  end
+
   desc <<~DESC
     Pull image(s).
 
