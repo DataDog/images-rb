@@ -23,10 +23,13 @@ namespace :docker do
         image = "#{repository}/#{context.sub(/^src\//, "")}".sub(/Dockerfile(?:.*)$/) { |m| m.sub("Dockerfile", "").tr(".", "-") }
       end
 
+      platforms = File.read(dockerfile).lines.select { |l| l =~ /^\s*#\s*platforms:/ }.map { |l| l =~ /platforms: (.*)/ && $1 }
+
       targets = [
         {
           dockerfile: dockerfile,
           context: context,
+          platforms: platforms,
           image: image, # TODO: rename to repository
           tag: tag
           # TODO: rename to image/tag/tagged_image/name/alias: "#{repo}:#{tag}"
@@ -39,6 +42,7 @@ namespace :docker do
         targets << {
           dockerfile: dockerfile,
           context: context,
+          platforms: platforms,
           image: image,
           tag: stripped_tag,
           aliasing: tag
@@ -51,6 +55,7 @@ namespace :docker do
           targets << {
             dockerfile: dockerfile,
             context: context,
+            platforms: platforms,
             image: image,
             tag: "#{tag}-#{t}",
             aliasing: tag
