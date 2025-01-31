@@ -97,6 +97,8 @@ namespace :docker do
   def targets_for(args)
     images = args.to_a
 
+    images = ["**:*"] if images.empty?
+
     images.map do |image|
       image = "#{repository}/#{image}" unless image.start_with?(repository)
 
