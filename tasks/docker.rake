@@ -208,6 +208,7 @@ namespace :docker do
       image = target[:image]
       tag = target[:tag]
       push = ENV["PUSH"] == "true"
+      force = ENV["FORCE"] == "true"
 
       deps = [
         dockerfile
@@ -224,7 +225,7 @@ namespace :docker do
 
       local_dependencies[dockerfile].each { |dep| Rake::Task[:"docker:build"].execute(Rake::TaskArguments.new([], [dep])) }
 
-      next if satisfied?(-> { image_time("#{image}:#{tag}") }, deps)
+      next if !force && satisfied?(-> { image_time("#{image}:#{tag}") }, deps)
 
       sh "docker buildx build --platform #{platform} --cache-from=type=registry,ref=#{image}:#{tag} --output=type=image,push=#{push} --build-arg SOURCE_DATE_EPOCH=#{source_date_epoch} --build-arg BUILDKIT_INLINE_CACHE=1 -f #{dockerfile} -t #{image}:#{tag} #{context}"
     end
