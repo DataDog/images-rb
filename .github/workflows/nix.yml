@@ -47,7 +47,6 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@e50d5f73bfe71c2dd0aa4218de8f4afa59f8f81d
         with:
           source-url: https://github.com/DeterminateSystems/nix-installer/releases/download/v0.30.0/nix-installer-${{ matrix.platform.nix-installer.platform }}
-      - uses: DeterminateSystems/magic-nix-cache-action@87b14cf437d03d37989d87f0fa5ce4f5dc1a330b
       - name: Print Nix version
         run: |
           nix --version
