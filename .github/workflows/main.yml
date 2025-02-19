@@ -25,14 +25,14 @@ jobs:
       contents: read
       id-token: write
 
-  success:
-    name: Success
+  complete:
+    name: Main (complete)
     needs:
       - build-services
       - build-ruby
       - nix
     runs-on: ubuntu-24.04
     steps:
-      - name: Success
+      - name: Done
         run: |
-          true
+          echo 'DONE!'
