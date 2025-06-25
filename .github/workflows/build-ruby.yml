@@ -217,6 +217,11 @@ jobs:
                 "containerd-snapshotter": true
               }
             }
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 20
       - name: Set variables
         id: vars
         run: |
@@ -227,11 +232,8 @@ jobs:
           echo "TAG=${{ matrix.version }}-${{ matrix.libc }}-gha${{ github.run_id }}-g${{ github.sha }}" >> $GITHUB_OUTPUT
           echo "DOCKERFILE=src/engines/${{ matrix.engine }}/${{ matrix.version }}/Dockerfile.${{ matrix.libc }}" >> $GITHUB_OUTPUT
           echo "DOCKER_PLATFORMS=$(echo ${{ join(matrix.arch) }} | tr ',' '\n' | sed 's/^/linux\//' | paste -s -d, -)" >> $GITHUB_OUTPUT
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          persist-credentials: false
-          fetch-depth: 2
+          echo "REPRO_RUN_KEY=$(cat .repro_run_key)" >> $GITHUB_OUTPUT
+          echo "SOURCE_DATE_EPOCH=315532800" >> $GITHUB_OUTPUT # 1980-01-01 00:00:00 UTC
 
       # First, build image for x86_64 as it will fail fast
       #
@@ -241,24 +243,24 @@ jobs:
         if: ${{ contains(matrix.arch, 'x86_64') }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=false --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=false --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }}
       - name: Tag single-arch image (x86_64)
         if: ${{ contains(matrix.arch, 'x86_64') }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --load --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --load --platform linux/x86_64 --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
       - name: Test single-arch image (x86_64)
         if: ${{ contains(matrix.arch, 'x86_64') }}
         run: |
@@ -274,24 +276,24 @@ jobs:
         if: ${{ contains(matrix.arch, 'x86_64') }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --load --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --load --platform linux/x86_64 --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}
       - name: Build single-arch compiler image (x86_64)
         if: ${{ contains(matrix.arch, 'x86_64') && matrix.libc == 'musl' }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=false --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=false --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc
       # TODO: add CI tag and test
 
       # Then, build image for aarch64 which, being emulated under qemu, is slower
@@ -307,24 +309,24 @@ jobs:
         if: ${{ contains(matrix.arch, 'aarch64') }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=false --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=false --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }}
       - name: Tag single-arch image (aarch64)
         if: ${{ contains(matrix.arch, 'aarch64') }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --load --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --load --platform linux/aarch64 --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
       - name: Test single-arch image (aarch64)
         if: ${{ contains(matrix.arch, 'aarch64') }}
         run: |
@@ -340,24 +342,24 @@ jobs:
         if: ${{ contains(matrix.arch, 'aarch64') }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --load --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --load --platform linux/aarch64 --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}
       - name: Build single-arch compiler image (aarch64)
         if: ${{ contains(matrix.arch, 'aarch64') && matrix.libc == 'musl' }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=false --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=false --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc
       # TODO: add CI tag and test
 
       # Finally, assemble multi-arch image for a combined push to the registry
@@ -369,71 +371,71 @@ jobs:
       - name: Push CI run image (${{ join(matrix.arch, ', ') }})
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
       - name: Push commit image (${{ join(matrix.arch, ', ') }})
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${{ github.sha }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${{ github.sha }}
       - name: Push release image (${{ join(matrix.arch, ', ') }})
         if: ${{ inputs.push }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}
 
       # TODO: hardcoded, reuse strip-tags directive instead (or better, unify gnu)
       - name: Push unqualified release image (${{ join(matrix.arch, ', ') }})
         if: ${{ inputs.push && matrix.libc == 'gnu' }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ matrix.version }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ matrix.version }}
 
       # TODO: hardcoded, reuse append-tags directive instead (or better, unify gnu+centos)
       - name: Push commit compiler image (${{ join(matrix.arch, ', ') }})
         if: ${{ matrix.libc == 'gnu' || matrix.libc == 'centos' }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${{ github.sha }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${{ github.sha }}
       - name: Push release compiler image (${{ join(matrix.arch, ', ') }})
         if: ${{ inputs.push && (matrix.libc == 'gnu' || matrix.libc == 'centos') }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc
 
       # TODO: hardcoded musl, unify gnu instead
       - name: Remove dependency local image (${{ join(matrix.arch, ', ') }})
@@ -444,7 +446,7 @@ jobs:
         if: ${{ matrix.libc == 'musl' }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
@@ -452,12 +454,12 @@ jobs:
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${{ github.sha }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${{ github.sha }}
       - name: Push release compiler image (${{ join(matrix.arch, ', ') }})
         if: ${{ inputs.push && matrix.libc == 'musl' }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
@@ -465,4 +467,4 @@ jobs:
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc

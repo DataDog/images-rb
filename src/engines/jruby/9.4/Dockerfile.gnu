@@ -59,16 +59,14 @@ ENV PATH /opt/jruby/bin:$PATH
 RUN mkdir -p /opt/jruby/etc \
  && echo -e 'install: --no-document\nupdate: --no-document' >> /opt/jruby/etc/gemrc
 
-# Install things at a specific path and create ".bundle" in there as well:
-# This prevents pollution of an app volume and makes the bundle path mountable
-# as a volume as well.
+# don't create ".bundle" in all our apps
 ENV GEM_HOME /usr/local/bundle
-ENV BUNDLE_BIN="$GEM_HOME/bin" \
-    BUNDLE_SILENCE_ROOT_WARNING=1 \
+ENV BUNDLE_SILENCE_ROOT_WARNING=1 \
     BUNDLE_APP_CONFIG="$GEM_HOME"
-ENV PATH $BUNDLE_BIN:$PATH
-RUN mkdir -p "$GEM_HOME" "$BUNDLE_BIN" \
- && chmod 777 "$GEM_HOME" "$BUNDLE_BIN"
+ENV PATH $GEM_HOME/bin:$PATH
+
+# adjust permissions of a few directories for running "gem install" as an arbitrary user
+RUN mkdir -p "$GEM_HOME" && chmod 1777 "$GEM_HOME"
 
 ## Install a pinned RubyGems and Bundler
 RUN gem update --system 3.5.21
