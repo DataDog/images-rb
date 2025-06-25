@@ -221,7 +221,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           persist-credentials: false
-          fetch-depth: 2
+          fetch-depth: 20
       - name: Set variables
         id: vars
         run: |
@@ -243,7 +243,7 @@ jobs:
         if: ${{ contains(matrix.arch, 'x86_64') }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
@@ -254,7 +254,7 @@ jobs:
         if: ${{ contains(matrix.arch, 'x86_64') }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
@@ -276,7 +276,7 @@ jobs:
         if: ${{ contains(matrix.arch, 'x86_64') }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
@@ -287,7 +287,7 @@ jobs:
         if: ${{ contains(matrix.arch, 'x86_64') && matrix.libc == 'musl' }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
@@ -309,7 +309,7 @@ jobs:
         if: ${{ contains(matrix.arch, 'aarch64') }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
@@ -320,7 +320,7 @@ jobs:
         if: ${{ contains(matrix.arch, 'aarch64') }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
@@ -342,7 +342,7 @@ jobs:
         if: ${{ contains(matrix.arch, 'aarch64') }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
@@ -353,7 +353,7 @@ jobs:
         if: ${{ contains(matrix.arch, 'aarch64') && matrix.libc == 'musl' }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
@@ -371,7 +371,7 @@ jobs:
       - name: Push CI run image (${{ join(matrix.arch, ', ') }})
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
@@ -381,7 +381,7 @@ jobs:
       - name: Push commit image (${{ join(matrix.arch, ', ') }})
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
@@ -392,7 +392,7 @@ jobs:
         if: ${{ inputs.push }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
@@ -405,7 +405,7 @@ jobs:
         if: ${{ inputs.push && matrix.libc == 'gnu' }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
@@ -418,7 +418,7 @@ jobs:
         if: ${{ matrix.libc == 'gnu' || matrix.libc == 'centos' }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
@@ -429,7 +429,7 @@ jobs:
         if: ${{ inputs.push && (matrix.libc == 'gnu' || matrix.libc == 'centos') }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
@@ -446,7 +446,7 @@ jobs:
         if: ${{ matrix.libc == 'musl' }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
@@ -459,7 +459,7 @@ jobs:
         if: ${{ inputs.push && matrix.libc == 'musl' }}
         run: |
           cache_from=()
-          parents=( $(git rev-list --parents -n 1 ${{ github.sha }}) )
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
             echo "${sha}"
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
