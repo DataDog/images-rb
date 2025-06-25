@@ -217,6 +217,11 @@ jobs:
                 "containerd-snapshotter": true
               }
             }
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+          fetch-depth: 2
       - name: Set variables
         id: vars
         run: |
@@ -227,11 +232,7 @@ jobs:
           echo "TAG=${{ matrix.version }}-${{ matrix.libc }}-gha${{ github.run_id }}-g${{ github.sha }}" >> $GITHUB_OUTPUT
           echo "DOCKERFILE=src/engines/${{ matrix.engine }}/${{ matrix.version }}/Dockerfile.${{ matrix.libc }}" >> $GITHUB_OUTPUT
           echo "DOCKER_PLATFORMS=$(echo ${{ join(matrix.arch) }} | tr ',' '\n' | sed 's/^/linux\//' | paste -s -d, -)" >> $GITHUB_OUTPUT
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          persist-credentials: false
-          fetch-depth: 2
+          echo "REPRO_RUN_KEY=$(cat .repro_run_key)" >> $GITHUB_OUTPUT
 
       # First, build image for x86_64 as it will fail fast
       #
@@ -375,7 +376,7 @@ jobs:
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
       - name: Push commit image (${{ join(matrix.arch, ', ') }})
         run: |
           cache_from=()
@@ -385,7 +386,7 @@ jobs:
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${{ github.sha }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${{ github.sha }}
       - name: Push release image (${{ join(matrix.arch, ', ') }})
         if: ${{ inputs.push }}
         run: |
@@ -396,7 +397,7 @@ jobs:
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}
 
       # TODO: hardcoded, reuse strip-tags directive instead (or better, unify gnu)
       - name: Push unqualified release image (${{ join(matrix.arch, ', ') }})
@@ -409,7 +410,7 @@ jobs:
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ matrix.version }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ matrix.version }}
 
       # TODO: hardcoded, reuse append-tags directive instead (or better, unify gnu+centos)
       - name: Push commit compiler image (${{ join(matrix.arch, ', ') }})
@@ -422,7 +423,7 @@ jobs:
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${{ github.sha }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${{ github.sha }}
       - name: Push release compiler image (${{ join(matrix.arch, ', ') }})
         if: ${{ inputs.push && (matrix.libc == 'gnu' || matrix.libc == 'centos') }}
         run: |
@@ -433,7 +434,7 @@ jobs:
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc
 
       # TODO: hardcoded musl, unify gnu instead
       - name: Remove dependency local image (${{ join(matrix.arch, ', ') }})
@@ -452,7 +453,7 @@ jobs:
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${{ github.sha }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${{ github.sha }}
       - name: Push release compiler image (${{ join(matrix.arch, ', ') }})
         if: ${{ inputs.push && matrix.libc == 'musl' }}
         run: |
@@ -465,4 +466,4 @@ jobs:
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc
