@@ -249,7 +249,7 @@ jobs:
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=false --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=false --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }}
       - name: Tag single-arch image (x86_64)
         if: ${{ contains(matrix.arch, 'x86_64') }}
         run: |
@@ -260,7 +260,7 @@ jobs:
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --load --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --load --platform linux/x86_64 --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
       - name: Test single-arch image (x86_64)
         if: ${{ contains(matrix.arch, 'x86_64') }}
         run: |
@@ -282,7 +282,7 @@ jobs:
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --load --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --load --platform linux/x86_64 --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}
       - name: Build single-arch compiler image (x86_64)
         if: ${{ contains(matrix.arch, 'x86_64') && matrix.libc == 'musl' }}
         run: |
@@ -293,7 +293,7 @@ jobs:
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=false --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=false --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc
       # TODO: add CI tag and test
 
       # Then, build image for aarch64 which, being emulated under qemu, is slower
@@ -315,7 +315,7 @@ jobs:
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=false --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=false --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }}
       - name: Tag single-arch image (aarch64)
         if: ${{ contains(matrix.arch, 'aarch64') }}
         run: |
@@ -326,7 +326,7 @@ jobs:
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --load --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --load --platform linux/aarch64 --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.TAG }}
       - name: Test single-arch image (aarch64)
         if: ${{ contains(matrix.arch, 'aarch64') }}
         run: |
@@ -348,7 +348,7 @@ jobs:
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --load --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --load --platform linux/aarch64 --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}
       - name: Build single-arch compiler image (aarch64)
         if: ${{ contains(matrix.arch, 'aarch64') && matrix.libc == 'musl' }}
         run: |
@@ -359,7 +359,7 @@ jobs:
             cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc-g${sha})
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
-          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=false --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc
+          docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=false --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc
       # TODO: add CI tag and test
 
       # Finally, assemble multi-arch image for a combined push to the registry
