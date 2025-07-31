@@ -69,6 +69,10 @@ jobs:
             version: "3.4"
             libc: gnu
             arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.5"
+            libc: gnu
+            arch: ["x86_64", "aarch64"]
           - engine: jruby
             version: "9.2"
             libc: gnu
@@ -128,6 +132,10 @@ jobs:
             arch: ["x86_64", "aarch64"]
           - engine: ruby
             version: "3.4"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.5"
             libc: musl
             arch: ["x86_64", "aarch64"]
           - engine: jruby
@@ -201,6 +209,10 @@ jobs:
             arch: ["x86_64", "aarch64"]
           - engine: ruby
             version: "3.4"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.5"
             libc: centos
             arch: ["x86_64", "aarch64"]
     runs-on: ubuntu-24.04
@@ -295,7 +307,6 @@ jobs:
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
           docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=false --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform linux/x86_64 -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc
       # TODO: add CI tag and test
-
       # Then, build image for aarch64 which, being emulated under qemu, is slower
       #
       # Tagging is necessary to reference the image for the testing step
@@ -361,7 +372,6 @@ jobs:
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc)
           docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=false --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform linux/aarch64 -f ${{ steps.vars.outputs.DOCKERFILE }}.gcc
       # TODO: add CI tag and test
-
       # Finally, assemble multi-arch image for a combined push to the registry
       #
       # This reruns docker build but layers are in the cache, so it's fast
