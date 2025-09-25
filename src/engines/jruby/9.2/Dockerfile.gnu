@@ -70,8 +70,8 @@ ENV PATH $GEM_HOME/bin:$PATH
 RUN mkdir -p "$GEM_HOME" && chmod 1777 "$GEM_HOME"
 
 ## Install a pinned RubyGems and Bundler
-RUN gem update --system 3.3.26
-RUN gem install bundler:2.3.26
+RUN gem update --system 3.3.27
+RUN gem install bundler:2.3.27
 
 # Install additional gems that are in CRuby but missing from the above
 # JRuby install distribution. These are version-pinned for reproducibility.

@@ -139,7 +139,7 @@ rm -r /usr/src/ruby
 if yum list installed ruby; then exit 1; fi
 
 # update gem version
-gem update --system 3.5.21
+gem update --system 3.5.23
 
 # rough smoke test
 ruby --version
