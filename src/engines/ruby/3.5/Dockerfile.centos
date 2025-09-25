@@ -122,7 +122,32 @@ if [[ -n "$rustArch" ]]; then
     cargo --version
 fi
 
-yum install -y xz gcc automake bison zlib-devel libyaml-devel openssl-devel gdbm-devel readline-devel ncurses-devel libffi-devel
+yum install -y xz gcc automake bison zlib-devel libyaml-devel gdbm-devel readline-devel ncurses-devel libffi-devel perl-IPC-Cmd perl-Test-Simple
+
+OPENSSL_VERSION='1.1.1w'
+OPENSSL_SHA256='cf3098950cb4d853ad95c0841f1f9c6d3dc102dccfcacd521d93925208b76ac8'
+
+curl -L -o openssl.tar.gz "https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz"
+echo "$OPENSSL_SHA256 *openssl.tar.gz" | sha256sum --check --strict
+mkdir -p /usr/src/openssl
+tar -xzf openssl.tar.gz -C /usr/src/openssl --strip-components=1
+rm openssl.tar.gz
+
+cd /usr/src/openssl
+
+./config \
+    --prefix=/usr/local/ssl \
+    --openssldir=/usr/local/ssl \
+    shared \
+    zlib
+make -j "$(nproc)"
+make install
+
+echo "/usr/local/ssl/lib" > /etc/ld.so.conf.d/openssl.conf
+ldconfig
+
+cd /
+rm -r /usr/src/openssl
 
 curl -o ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz"
 echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.xz" | sha256sum --check --strict
@@ -148,6 +173,7 @@ gnuArch="$(gcc -dumpmachine)"
     --build="$gnuArch" \
     --disable-install-doc \
     --disable-shared \
+    --with-openssl-dir=/usr/local/ssl \
     ${rustArch:+--enable-yjit}
 make -j "$(nproc)"
 make install
