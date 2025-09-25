@@ -154,7 +154,7 @@ rm -r /usr/src/ruby
 if yum list installed ruby; then exit 1; fi
 
 # update gem version
-gem update --system 3.3.27
+gem update --system 3.4.22
 
 # rough smoke test
 ruby --version
@@ -173,4 +173,3 @@ ENV PATH $GEM_HOME/bin:$PATH
 RUN mkdir -p "$GEM_HOME" && chmod 1777 "$GEM_HOME"
 
 CMD [ "irb" ]
-
