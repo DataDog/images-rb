@@ -1,4 +1,4 @@
-FROM eclipse-temurin:22-jdk-alpine AS jruby-9.3.9.0-jre22
+FROM eclipse-temurin:22-jdk-alpine AS jruby-9.3.15.0-jre22
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
 # variability: an identical command would be the same from `docker build`'s
@@ -32,19 +32,19 @@ RUN true "${REPRO_RUN_KEY}" && apk update
 RUN apk add curl bash
 
 # Install JRuby, pinned for reproducibility
-ENV JRUBY_VERSION 9.3.9.0
-ENV JRUBY_SHA256 251e6dd8d1d2f82922c8c778d7857e1bef82fe5ca2cf77bc09356421d0b05ab8
+ENV JRUBY_VERSION 9.3.15.0
+ENV JRUBY_SHA256 0f8f8e4ed2fe97976d1c68350e967b937a860001fe3cbb42247a8612ab246628
 RUN mkdir /opt/jruby \
- && curl -fSL https://repo1.maven.org/maven2/org/jruby/jruby-dist/${JRUBY_VERSION}/jruby-dist-${JRUBY_VERSION}-bin.tar.gz -o /tmp/jruby.tar.gz \
- && echo "$JRUBY_SHA256 /tmp/jruby.tar.gz" | sha256sum -c - \
- && tar -zx --strip-components=1 -f /tmp/jruby.tar.gz -C /opt/jruby \
- && rm /tmp/jruby.tar.gz \
- && ln -sf /opt/jruby/bin/jruby /usr/local/bin/ruby
+    && curl -fSL https://repo1.maven.org/maven2/org/jruby/jruby-dist/${JRUBY_VERSION}/jruby-dist-${JRUBY_VERSION}-bin.tar.gz -o /tmp/jruby.tar.gz \
+    && echo "$JRUBY_SHA256 /tmp/jruby.tar.gz" | sha256sum -c - \
+    && tar -zx --strip-components=1 -f /tmp/jruby.tar.gz -C /opt/jruby \
+    && rm /tmp/jruby.tar.gz \
+    && ln -sf /opt/jruby/bin/jruby /usr/local/bin/ruby
 ENV PATH /opt/jruby/bin:$PATH
 
 # Skip installing gem documentation
 RUN mkdir -p /opt/jruby/etc \
- && echo -e 'install: --no-document\nupdate: --no-document' >> /opt/jruby/etc/gemrc
+    && echo -e 'install: --no-document\nupdate: --no-document' >> /opt/jruby/etc/gemrc
 
 ## Install a pinned RubyGems and Bundler
 RUN gem update --system 3.4.22

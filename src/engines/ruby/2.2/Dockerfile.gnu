@@ -17,10 +17,10 @@ FROM buildpack-deps:stretch AS ruby-2.2.10-stretch
 
 # skip installing gem documentation
 RUN mkdir -p /usr/local/etc \
-  && { \
+    && { \
     echo 'install: --no-document'; \
     echo 'update: --no-document'; \
-  } >> /usr/local/etc/gemrc
+    } >> /usr/local/etc/gemrc
 
 ENV RUBY_MAJOR 2.2
 ENV RUBY_VERSION 2.2.10
@@ -34,58 +34,58 @@ RUN echo "deb [trusted=yes] http://archive.debian.org/debian/ stretch main contr
 # some of ruby's build scripts are written in ruby
 #   we purge system ruby later to make sure our final image uses what we just built
 RUN set -ex \
-  && apt-get update \
-  # ruby 2.2 needs libssl1.0-dev
-  && apt-get install -y --no-install-recommends wget \
-  && apt-get remove -y libssl-dev libcurl4-openssl-dev \
-  && ARCH=$(dpkg --print-architecture) \
-  && wget "https://snapshot.debian.org/archive/debian-security/20220317T093342Z/pool/updates/main/o/openssl1.0/libssl1.0.2_1.0.2u-1~deb9u7_${ARCH}.deb" \
-  && dpkg -i libssl1.0.2*.deb \
-  && rm -rf libssl1.0.2*.deb \
-  && wget "https://snapshot.debian.org/archive/debian-security/20220317T093342Z/pool/updates/main/o/openssl1.0/libssl1.0-dev_1.0.2u-1~deb9u7_${ARCH}.deb" \
-  && dpkg -i libssl1.0-dev*.deb \
-  && rm -rf libssl1.0-dev*.deb \
-# some of ruby's build scripts are written in ruby
-#   we purge system ruby later to make sure our final image uses what we just built
-  && buildDeps=' \
+    && apt-get update \
+    # ruby 2.2 needs libssl1.0-dev
+    && apt-get install -y --no-install-recommends wget \
+    && apt-get remove -y libssl-dev libcurl4-openssl-dev \
+    && ARCH=$(dpkg --print-architecture) \
+    && wget "https://snapshot.debian.org/archive/debian-security/20220317T093342Z/pool/updates/main/o/openssl1.0/libssl1.0.2_1.0.2u-1~deb9u7_${ARCH}.deb" \
+    && dpkg -i libssl1.0.2*.deb \
+    && rm -rf libssl1.0.2*.deb \
+    && wget "https://snapshot.debian.org/archive/debian-security/20220317T093342Z/pool/updates/main/o/openssl1.0/libssl1.0-dev_1.0.2u-1~deb9u7_${ARCH}.deb" \
+    && dpkg -i libssl1.0-dev*.deb \
+    && rm -rf libssl1.0-dev*.deb \
+    # some of ruby's build scripts are written in ruby
+    #   we purge system ruby later to make sure our final image uses what we just built
+    && buildDeps=' \
     bison \
     dpkg-dev \
     libgdbm-dev \
     ruby \
-  ' \
-  && apt-get install -y --no-install-recommends $buildDeps \
-  && rm -rf /var/lib/apt/lists/* \
-  \
-  && wget -O ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz" \
-  && echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.xz" | sha256sum -c - \
-  \
-  && mkdir -p /usr/src/ruby \
-  && tar -xJf ruby.tar.xz -C /usr/src/ruby --strip-components=1 \
-  && rm ruby.tar.xz \
-  \
-  && cd /usr/src/ruby \
-  \
-# hack in "ENABLE_PATH_CHECK" disabling to suppress:
-#   warning: Insecure world writable dir
-  && { \
+    ' \
+    && apt-get install -y --no-install-recommends $buildDeps \
+    && rm -rf /var/lib/apt/lists/* \
+    \
+    && wget -O ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz" \
+    && echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.xz" | sha256sum -c - \
+    \
+    && mkdir -p /usr/src/ruby \
+    && tar -xJf ruby.tar.xz -C /usr/src/ruby --strip-components=1 \
+    && rm ruby.tar.xz \
+    \
+    && cd /usr/src/ruby \
+    \
+    # hack in "ENABLE_PATH_CHECK" disabling to suppress:
+    #   warning: Insecure world writable dir
+    && { \
     echo '#define ENABLE_PATH_CHECK 0'; \
     echo; \
     cat file.c; \
-  } > file.c.new \
-  && mv file.c.new file.c \
-  \
-  && autoconf \
-  && gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)" \
-  && ./configure \
+    } > file.c.new \
+    && mv file.c.new file.c \
+    \
+    && autoconf \
+    && gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)" \
+    && ./configure \
     --build="$gnuArch" \
     --disable-install-doc \
     --enable-shared \
-  && make -j "$(nproc)" \
-  && make install \
-  \
-  && apt-get purge -y --auto-remove $buildDeps \
-  && cd / \
-  && rm -r /usr/src/ruby
+    && make -j "$(nproc)" \
+    && make install \
+    \
+    && apt-get purge -y --auto-remove $buildDeps \
+    && cd / \
+    && rm -r /usr/src/ruby
 
 # \
 # && gem update --system "$RUBYGEMS_VERSION" \

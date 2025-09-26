@@ -1,5 +1,5 @@
 # platforms: linux/x86_64
-FROM ruby:2.1-alpine
+FROM ruby:2.1.10-alpine
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
 # variability: an identical command would be the same from `docker build`'s

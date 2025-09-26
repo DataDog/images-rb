@@ -1,7 +1,7 @@
 # strip-tags: gnu
 # append-tags: gcc
 
-FROM eclipse-temurin:11-jammy AS jruby-9.3.9.0-jre11
+FROM eclipse-temurin:11-jammy AS jruby-9.3.15.0-jre11
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
 # variability: an identical command would be the same from `docker build`'s
@@ -45,19 +45,19 @@ ENV LANGUAGE en_US:en
 RUN ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime
 
 # Install JRuby, pinned for reproducibility
-ENV JRUBY_VERSION 9.3.9.0
-ENV JRUBY_SHA256 251e6dd8d1d2f82922c8c778d7857e1bef82fe5ca2cf77bc09356421d0b05ab8
+ENV JRUBY_VERSION 9.3.15.0
+ENV JRUBY_SHA256 0f8f8e4ed2fe97976d1c68350e967b937a860001fe3cbb42247a8612ab246628
 RUN mkdir /opt/jruby \
- && curl -fSL https://repo1.maven.org/maven2/org/jruby/jruby-dist/${JRUBY_VERSION}/jruby-dist-${JRUBY_VERSION}-bin.tar.gz -o /tmp/jruby.tar.gz \
- && echo "$JRUBY_SHA256 /tmp/jruby.tar.gz" | sha256sum -c - \
- && tar -zx --strip-components=1 -f /tmp/jruby.tar.gz -C /opt/jruby \
- && rm /tmp/jruby.tar.gz \
- && update-alternatives --install /usr/local/bin/ruby ruby /opt/jruby/bin/jruby 1
+    && curl -fSL https://repo1.maven.org/maven2/org/jruby/jruby-dist/${JRUBY_VERSION}/jruby-dist-${JRUBY_VERSION}-bin.tar.gz -o /tmp/jruby.tar.gz \
+    && echo "$JRUBY_SHA256 /tmp/jruby.tar.gz" | sha256sum -c - \
+    && tar -zx --strip-components=1 -f /tmp/jruby.tar.gz -C /opt/jruby \
+    && rm /tmp/jruby.tar.gz \
+    && update-alternatives --install /usr/local/bin/ruby ruby /opt/jruby/bin/jruby 1
 ENV PATH /opt/jruby/bin:$PATH
 
 # Skip installing gem documentation
 RUN mkdir -p /opt/jruby/etc \
- && echo -e 'install: --no-document\nupdate: --no-document' >> /opt/jruby/etc/gemrc
+    && echo -e 'install: --no-document\nupdate: --no-document' >> /opt/jruby/etc/gemrc
 
 # don't create ".bundle" in all our apps
 ENV GEM_HOME /usr/local/bundle

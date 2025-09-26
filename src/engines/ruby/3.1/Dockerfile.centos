@@ -85,8 +85,8 @@ GEMRC
 
 ENV LANG="en_US.UTF-8"                                                                      \
     RUBY_MAJOR="3.1"                                                                        \
-    RUBY_VERSION="3.1.4"                                                                    \
-    RUBY_DOWNLOAD_SHA256="1b6d6010e76036c937b9671f4752f065aeca800a6c664f71f6c9a699453af94f"
+    RUBY_VERSION="3.1.7"                                                                    \
+    RUBY_DOWNLOAD_SHA256="658acc455b6bda87ac6cc1380e86552b9c1af87055e7a127589c5bf7ed80b035"
 
 # - Compile Ruby with `--disable-shared`
 # - Update gem version
@@ -151,7 +151,7 @@ SHELL
 # don't create ".bundle" in all our apps
 ENV GEM_HOME /usr/local/bundle
 ENV BUNDLE_SILENCE_ROOT_WARNING=1 \
-	BUNDLE_APP_CONFIG="$GEM_HOME"
+    BUNDLE_APP_CONFIG="$GEM_HOME"
 ENV PATH $GEM_HOME/bin:$PATH
 
 # adjust permissions of a few directories for running "gem install" as an arbitrary user
