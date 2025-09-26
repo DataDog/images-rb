@@ -446,12 +446,14 @@ jobs:
           docker buildx build ${{ steps.vars.outputs.SRC }} "${cache_from[@]}" --output=type=image,push=true --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} --build-arg BUILDKIT_INLINE_CACHE=1 --platform ${{ steps.vars.outputs.DOCKER_PLATFORMS }} -f ${{ steps.vars.outputs.DOCKERFILE }} --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-gcc
 
       # TODO: hardcoded musl, unify gnu instead
+      # TODO: needed because local tag is exported as single-arch, causing multi-arch failure below
       - name: Remove dependency local image (${{ join(matrix.arch, ', ') }})
         if: ${{ matrix.libc == 'musl' }}
         run: |
           docker image rm ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}
+      # TODO: push-conditioned because FROM references an unpushed image (new: fails, existing: risks using wrong base image)
       - name: Push commit compiler image (${{ join(matrix.arch, ', ') }})
-        if: ${{ matrix.libc == 'musl' }}
+        if: ${{ inputs.push && matrix.libc == 'musl' }}
         run: |
           cache_from=()
           parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
