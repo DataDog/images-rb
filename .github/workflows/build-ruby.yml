@@ -229,7 +229,7 @@ jobs:
     name: Build (${{ matrix.engine }} ${{ matrix.version }} ${{ matrix.libc }})
     steps:
       - name: Set up Docker
-        uses: crazy-max/ghaction-setup-docker@b60f85385d03ac8acfca6d9996982511d8620a19
+        uses: crazy-max/ghaction-setup-docker@3fb92d6d9c634363128c8cce4bc3b2826526370a
         with:
           daemon-config: |
             {
