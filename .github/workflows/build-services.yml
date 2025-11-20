@@ -48,6 +48,7 @@ jobs:
       - name: Set up Docker
         uses: crazy-max/ghaction-setup-docker@3fb92d6d9c634363128c8cce4bc3b2826526370a
         with:
+          version: v28.5.1
           daemon-config: |
             {
               "features": {
