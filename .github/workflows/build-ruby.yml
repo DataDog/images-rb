@@ -231,10 +231,6 @@ jobs:
             version: "3.5"
             libc: centos
             arch: ["x86_64", "aarch64"]
-          - engine: ruby
-            version: "4.0"
-            libc: centos
-            arch: ["x86_64", "aarch64"]
     runs-on: ubuntu-24.04
     permissions:
       packages: write
