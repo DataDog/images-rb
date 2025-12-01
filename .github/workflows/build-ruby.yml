@@ -237,7 +237,7 @@ jobs:
     name: Build (${{ matrix.engine }} ${{ matrix.version }} ${{ matrix.libc }})
     steps:
       - name: Set up Docker
-        uses: crazy-max/ghaction-setup-docker@3fb92d6d9c634363128c8cce4bc3b2826526370a
+        uses: crazy-max/ghaction-setup-docker@e61617a16c407a86262fb923c35a616ddbe070b3
         with:
           version: v28.5.1
           daemon-config: |
@@ -247,7 +247,7 @@ jobs:
               }
             }
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
         with:
           persist-credentials: false
           fetch-depth: 20
