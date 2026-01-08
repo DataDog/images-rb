@@ -1,7 +1,7 @@
 # strip-tags: gnu
 # append-tags: gcc
 
-FROM ruby:4.0.0-preview2
+FROM ruby:4.0.0
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
 # variability: an identical command would be the same from `docker build`'s

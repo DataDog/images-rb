@@ -3,7 +3,7 @@ source "https://rubygems.org"
 gem "rake"
 
 group :test do
-  gem "minitest"
+  gem "minitest", "< 6.0" # avoid dependency on prism
 end
 
 group :check do
