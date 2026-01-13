@@ -198,7 +198,7 @@ gnuArch="$(gcc -dumpmachine)"
     --disable-install-doc \
     --disable-shared \
     --with-openssl-dir=/usr/local/ssl \
-    ${rustArch:+--enable-yjit}
+    ${rustArch:+--enable-yjit --enable-zjit}
 make -j "$(nproc)"
 make install
 
