@@ -1,7 +1,8 @@
 # strip-tags: gnu
 # append-tags: gcc
 
-FROM ruby:3.2.9-bookworm
+# Debian 12 (bookworm)
+FROM public.ecr.aws/docker/library/debian:12
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
 # variability: an identical command would be the same from `docker build`'s
@@ -34,16 +35,135 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
 # updated by changing the `REPRO_RUN_KEY`.
 RUN true "${REPRO_RUN_KEY}" && apt-get update
 
-# Install system dependencies for building
-RUN apt-get install -y libc6-dev build-essential git locales tzdata --no-install-recommends && rm -rf /var/lib/apt/lists/*
+# Install locale and timezone support first
+RUN apt-get install -y locales tzdata --no-install-recommends
 
 # Ensure sane locale (Uncomment `en_US.UTF-8` from `/etc/locale.gen` before running `locale-gen`)
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
 
 # Ensure consistent timezone
 RUN ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime
+
+# Skip installing gem documentation
+COPY <<GEMRC /usr/local/etc/gemrc
+install: --no-document
+update: --no-document
+GEMRC
+
+ENV LANG="en_US.UTF-8"                                                                      \
+    LANGUAGE="en_US:en"                                                                     \
+    RUBY_MAJOR="3.2"                                                                        \
+    RUBY_VERSION="3.2.9"                                                                    \
+    RUBY_DOWNLOAD_SHA256="cf6699d0084c588e7944d92e1a8edda28b1cc3ee471a1f0aebb4b3d32c9753b2"
+
+# - Compile Ruby with `--disable-shared`
+# - Update gem version
+
+RUN <<SHELL
+set -eux
+
+apt-get install -y \
+    curl \
+    ca-certificates \
+    gcc \
+    g++ \
+    make \
+    autoconf \
+    bison \
+    patch \
+    libc6-dev \
+    build-essential \
+    git \
+    xz-utils \
+    zlib1g-dev \
+    libyaml-dev \
+    libgdbm-dev \
+    libreadline-dev \
+    libncurses5-dev \
+    libffi-dev \
+    libssl-dev \
+    --no-install-recommends
+
+rustArch=
+rustupUrl=
+rustupSha256=
+
+case "$(uname -m)" in
+    'x86_64')
+        rustArch='x86_64-unknown-linux-gnu'
+        rustupUrl='https://static.rust-lang.org/rustup/archive/1.26.0/x86_64-unknown-linux-gnu/rustup-init'
+        rustupSha256='0b2f6c8f85a3d02fde2efc0ced4657869d73fccfce59defb4e8d29233116e6db'
+        ;;
+    'aarch64')
+        rustArch='aarch64-unknown-linux-gnu'
+        rustupUrl='https://static.rust-lang.org/rustup/archive/1.26.0/aarch64-unknown-linux-gnu/rustup-init'
+        rustupSha256='673e336c81c65e6b16dcdede33f4cc9ed0f08bde1dbe7a935f113605292dc800'
+        ;;
+esac
+
+if [ -n "$rustArch" ]; then
+    mkdir -p /tmp/rust
+
+    curl -o /tmp/rust/rustup-init "$rustupUrl"
+    echo "$rustupSha256 */tmp/rust/rustup-init" | sha256sum --check --strict
+    chmod +x /tmp/rust/rustup-init
+
+    export RUSTUP_HOME='/tmp/rust/rustup' CARGO_HOME='/tmp/rust/cargo'
+    export PATH="$CARGO_HOME/bin:$PATH"
+    /tmp/rust/rustup-init -y --no-modify-path --profile minimal --default-toolchain '1.74.1' --default-host "$rustArch"
+
+    rustc --version
+    cargo --version
+fi
+
+curl -o ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz"
+echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.xz" | sha256sum --check --strict
+mkdir -p /usr/src/ruby
+tar -xJf ruby.tar.xz -C /usr/src/ruby --strip-components=1
+rm ruby.tar.xz
+
+cd /usr/src/ruby
+
+# hack in "ENABLE_PATH_CHECK" disabling to suppress:
+#   warning: Insecure world writable dir
+{
+    echo '#define ENABLE_PATH_CHECK 0'
+    echo
+    cat file.c
+} > file.c.new
+mv file.c.new file.c
+
+autoconf
+
+gnuArch="$(gcc -dumpmachine)"
+./configure \
+    --build="$gnuArch" \
+    --disable-install-doc \
+    --disable-shared \
+    ${rustArch:+--enable-yjit}
+make -j "$(nproc)"
+make install
+
+rm -rf /tmp/rust
+
+cd /
+rm -r /usr/src/ruby
+
+# verify ruby is not installed via apt
+if dpkg -l ruby 2>/dev/null | grep -q '^ii'; then exit 1; fi
+
+# update gem version
+gem update --system 3.7.2
+
+# rough smoke test
+ruby --version
+gem --version
+bundle --version
+
+# clean up apt lists
+rm -rf /var/lib/apt/lists/*
+
+SHELL
 
 # don't create ".bundle" in all our apps
 ENV GEM_HOME /usr/local/bundle
@@ -54,12 +174,4 @@ ENV PATH $GEM_HOME/bin:$PATH
 # adjust permissions of a few directories for running "gem install" as an arbitrary user
 RUN mkdir -p "$GEM_HOME" && chmod 1777 "$GEM_HOME"
 
-## Install a pinned RubyGems and Bundler
-RUN gem update --system 3.7.2
-
-# Install additional gems that are in CRuby but missing from the above
-# JRuby install distribution. These are version-pinned for reproducibility.
-RUN gem install rake:13.2.1
-
-# Start IRB as a default
 CMD [ "irb" ]

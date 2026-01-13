@@ -3,7 +3,7 @@ FROM public.ecr.aws/docker/library/centos:centos7.9.2009
 
 # Set yum vault
 RUN <<SHELL
-set -euxo pipefail
+set -eux
 
 if [ "$(uname -m)" != "x86_64" ]; then
     repo_version="altarch/7.9.2009"
@@ -92,7 +92,11 @@ ENV LANG="en_US.UTF-8"                                                          
 # - Update gem version
 
 RUN <<SHELL
-set -euxo pipefail
+set -eux
+
+rustArch=
+rustupUrl=
+rustupSha256=
 
 case "$(uname -m)" in
     'x86_64')
@@ -107,7 +111,7 @@ case "$(uname -m)" in
         ;;
 esac
 
-if [[ -n "$rustArch" ]]; then
+if [ -n "$rustArch" ]; then
     mkdir -p /tmp/rust
 
     curl -o /tmp/rust/rustup-init "$rustupUrl"
