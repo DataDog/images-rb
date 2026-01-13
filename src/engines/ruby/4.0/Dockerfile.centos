@@ -33,6 +33,23 @@ baseurl=http://vault.centos.org/${repo_version}/centosplus/\$basearch/
 gpgcheck=0
 enabled=0
 EOF
+
+# Add SCL repository for devtoolset
+cat <<EOF > /etc/yum.repos.d/CentOS-SCLo-scl-rh.repo
+[centos-sclo-rh]
+name=CentOS-\$releasever - SCLo rh
+baseurl=http://vault.centos.org/${repo_version}/sclo/\$basearch/rh/
+gpgcheck=0
+enabled=1
+EOF
+
+cat <<EOF > /etc/yum.repos.d/CentOS-SCLo-scl.repo
+[centos-sclo-sclo]
+name=CentOS-\$releasever - SCLo sclo
+baseurl=http://vault.centos.org/${repo_version}/sclo/\$basearch/sclo/
+gpgcheck=0
+enabled=1
+EOF
 SHELL
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
@@ -68,7 +85,7 @@ RUN true "${REPRO_RUN_KEY}" && yum makecache -y
 # fun: CentOS 8 has `yum list glibc-langpack-\*` but not CentOS 7 :'(
 RUN yum reinstall -y glibc-common
 
-RUN yum install -y curl gcc gcc-c++ gettext make patchutils patch libtool pkgconfig gettext file zip unzip git
+RUN yum install -y curl gcc gcc-c++ gettext make patchutils patch libtool pkgconfig gettext file zip unzip git devtoolset-10 cmake3
 
 # fun: this has to be after `yum install curl gcc make`... but only on aarch64; go figure
 # extra fun: table is botched, localedef not happy, swallow result and test `locale` for errors
@@ -93,6 +110,13 @@ ENV LANG="en_US.UTF-8"                                                          
 
 RUN <<SHELL
 set -euxo pipefail
+
+# Enable devtoolset-10 for gcc 10; not devtoolset-11, which is missing necessary packages
+# this mimics `scl enable devtoolset-10 -- bash`
+# MANPATH is needed because it's smoehow unset and crashes the `enable` script
+export MANPATH=""
+source /opt/rh/devtoolset-10/enable
+gcc --version
 
 case "$(uname -m)" in
     'x86_64')
