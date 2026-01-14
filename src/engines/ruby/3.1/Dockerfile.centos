@@ -3,7 +3,7 @@ FROM public.ecr.aws/docker/library/centos:centos7.9.2009
 
 # Set yum vault
 RUN <<SHELL
-set -euxo pipefail
+set -eux
 
 if [ "$(uname -m)" != "x86_64" ]; then
     repo_version="altarch/7.9.2009"
@@ -92,7 +92,7 @@ ENV LANG="en_US.UTF-8"                                                          
 # - Update gem version
 
 RUN <<SHELL
-set -euxo pipefail
+set -eux
 
 yum install -y xz gcc automake bison zlib-devel libyaml-devel openssl-devel gdbm-devel readline-devel ncurses-devel libffi-devel
 
@@ -119,7 +119,8 @@ gnuArch="$(gcc -dumpmachine)"
 ./configure \
     --build="$gnuArch" \
     --disable-install-doc \
-    --disable-shared
+    --disable-shared \
+    --enable-yjit
 make -j "$(nproc)"
 make install
 
