@@ -1,0 +1,167 @@
+name: Build Image
+
+on:
+  workflow_call:
+    inputs:
+      engine:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      libc:
+        required: true
+        type: string
+      arch:
+        required: true
+        type: string # JSON array: '["x86_64", "aarch64"]' or '["x86_64"]'
+      push:
+        required: false
+        type: boolean
+        default: false
+
+env:
+  REGISTRY: ghcr.io
+  REPO: datadog/images-rb
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: ${{ fromJSON(inputs.arch) }}
+    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    permissions:
+      packages: write
+    name: Build (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.libc }}, ${{ matrix.arch }})
+    steps:
+      - name: Set up Docker
+        uses: crazy-max/ghaction-setup-docker@3fb92d6d9c634363128c8cce4bc3b2826526370a
+        with:
+          version: v28.5.1
+          daemon-config: |
+            {
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }
+
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          persist-credentials: false
+          fetch-depth: 20
+
+      - name: Set variables
+        id: vars
+        run: |
+          echo "SRC=src/engines/${{ inputs.engine }}/${{ inputs.version }}" >> $GITHUB_OUTPUT
+          echo "IMAGE=${{ env.REGISTRY }}/${{ env.REPO }}/engines/${{ inputs.engine }}" >> $GITHUB_OUTPUT
+          echo "RELEASE_TAG=${{ inputs.version }}-${{ inputs.libc }}" >> $GITHUB_OUTPUT
+          echo "COMMIT_TAG=${{ inputs.version }}-${{ inputs.libc }}-g${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "DOCKERFILE=src/engines/${{ inputs.engine }}/${{ inputs.version }}/Dockerfile.${{ inputs.libc }}" >> $GITHUB_OUTPUT
+          echo "REPRO_RUN_KEY=$(cat .repro_run_key)" >> $GITHUB_OUTPUT
+          echo "SOURCE_DATE_EPOCH=315532800" >> $GITHUB_OUTPUT # 1980-01-01 00:00:00 UTC
+
+      - name: Log in to the Container Registry
+        run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+      # Build and push the single-arch image to the registry.
+      # The arch-qualified COMMIT_TAG makes this safe against concurrent runs.
+      - name: Build and push single-arch image
+        run: |
+          cache_from=()
+          parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
+          for sha in "${parents[@]}"; do
+            cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }}-g${sha})
+          done
+          cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
+
+          docker buildx build ${{ steps.vars.outputs.SRC }} \
+            "${cache_from[@]}" \
+            --output=type=image,push=true \
+            --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} \
+            --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --platform linux/${{ matrix.arch }} \
+            -f ${{ steps.vars.outputs.DOCKERFILE }} \
+            --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.COMMIT_TAG }}-${{ matrix.arch }}
+
+      # Load the image locally for testing.
+      # The layers are already in the local buildx cache from the previous step, so this is fast.
+      - name: Load image for testing
+        run: |
+          docker buildx build ${{ steps.vars.outputs.SRC }} \
+            --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.COMMIT_TAG }}-${{ matrix.arch }} \
+            --load \
+            --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} \
+            --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
+            --platform linux/${{ matrix.arch }} \
+            -f ${{ steps.vars.outputs.DOCKERFILE }} \
+            --tag ${{ steps.vars.outputs.IMAGE }}:test
+
+      - name: Test image
+        run: |
+          docker run --rm ${{ steps.vars.outputs.IMAGE }}:test /bin/sh -c 'true'
+          docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -e 'puts RUBY_DESCRIPTION'
+          docker run --rm ${{ steps.vars.outputs.IMAGE }}:test gem --version
+          docker run --rm ${{ steps.vars.outputs.IMAGE }}:test bundle --version
+          docker run --rm \
+            -v "${PWD}":"${PWD}" -w "${PWD}" \
+            -e BUNDLE_GEMFILE=gemfiles/${{ inputs.engine }}-${{ inputs.version }}.gemfile \
+            ${{ steps.vars.outputs.IMAGE }}:test \
+            /bin/sh -c 'bundle install --with="test" --without="check ide" && bundle exec rake test'
+
+  join:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    name: Join [${{ join(fromJSON(inputs.arch), ', ') }}] (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.libc }})
+    steps:
+      - name: Set up Docker
+        uses: crazy-max/ghaction-setup-docker@3fb92d6d9c634363128c8cce4bc3b2826526370a
+        with:
+          version: v28.5.1
+
+      - name: Set variables
+        id: vars
+        run: |
+          echo "IMAGE=${{ env.REGISTRY }}/${{ env.REPO }}/engines/${{ inputs.engine }}" >> $GITHUB_OUTPUT
+          echo "RELEASE_TAG=${{ inputs.version }}-${{ inputs.libc }}" >> $GITHUB_OUTPUT
+          echo "COMMIT_TAG=${{ inputs.version }}-${{ inputs.libc }}-g${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Log in to the Container Registry
+        run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+      # Combine the per-arch images into one multiarch manifest list.
+      # This only manipulates manifests in the registry — no image data is pulled.
+      - name: Create and push multiarch manifest (commit tag)
+        run: |
+          sources=()
+          for arch in $(echo '${{ inputs.arch }}' | jq -r '.[]'); do
+            sources+=("${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.COMMIT_TAG }}-${arch}")
+          done
+
+          docker buildx imagetools create \
+            -t ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.COMMIT_TAG }} \
+            "${sources[@]}"
+
+      # Retag the multiarch manifest as the release tag.
+      - name: Create and push multiarch manifest (release tag)
+        if: ${{ inputs.push }}
+        run: |
+          docker buildx imagetools create \
+            -t ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }} \
+            ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.COMMIT_TAG }}
+
+      # For gnu, also push the unqualified version tag (e.g. "3.3" without "-gnu")
+      - name: Create and push multiarch manifest (unqualified release tag)
+        if: ${{ inputs.push && inputs.libc == 'gnu' }}
+        run: |
+          docker buildx imagetools create \
+            -t ${{ steps.vars.outputs.IMAGE }}:${{ inputs.version }} \
+            ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.COMMIT_TAG }}
