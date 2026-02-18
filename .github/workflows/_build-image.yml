@@ -119,7 +119,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       packages: write
-    name: Join [${{ join(fromJSON(inputs.arch), ', ') }}] (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.libc }})
+    name: Join (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.libc }}) [${{ join(fromJSON(inputs.arch), ', ') }}]
     steps:
       - name: Set up Docker
         uses: crazy-max/ghaction-setup-docker@3fb92d6d9c634363128c8cce4bc3b2826526370a

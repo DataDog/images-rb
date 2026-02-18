@@ -248,7 +248,7 @@ jobs:
             version: "4.0"
             libc: centos
             arch: ["x86_64", "aarch64"]
-    name: ${{ matrix.engine }} ${{ matrix.version }} ${{ matrix.libc }}
+    name: ${{ matrix.engine }}:${{ matrix.version }}-${{ matrix.libc }}
     uses: ./.github/workflows/_build-image.yml
     with:
       engine: ${{ matrix.engine }}
