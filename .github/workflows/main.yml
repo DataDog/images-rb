@@ -12,9 +12,41 @@ jobs:
     permissions:
       packages: write
 
+  # Stage 1: Build all base images (gnu, musl, centos)
+  #
+  # Release tags are always pushed here because downstream compiler stages
+  # FROM the release tag (e.g. Dockerfile.musl.gcc does FROM ...ruby:3.3-musl)
   build-ruby:
     name: Build Ruby
-    uses: ./.github/workflows/build-ruby-pipeline.yml
+    uses: ./.github/workflows/build-ruby.yml
+    with:
+      push: true
+    permissions:
+      packages: write
+
+  # Stage 2: Build musl compiler images (musl.gcc, musl.clang)
+  #
+  # These depend on the base musl images being pushed to the registry.
+  # gcc and clang are independent of each other and can run in parallel.
+  build-ruby-gcc:
+    name: Build Ruby Compilers (gcc)
+    needs: build-ruby
+    uses: ./.github/workflows/build-ruby-compilers.yml
+    with:
+      push: true
+      dockerfile_suffix: ".gcc"
+      tag_suffix: "-gcc"
+    permissions:
+      packages: write
+
+  build-ruby-clang:
+    name: Build Ruby Compilers (clang)
+    needs: build-ruby
+    uses: ./.github/workflows/build-ruby-compilers.yml
+    with:
+      push: true
+      dockerfile_suffix: ".clang"
+      tag_suffix: "-clang"
     permissions:
       packages: write
 
@@ -30,6 +62,8 @@ jobs:
     needs:
       - build-services
       - build-ruby
+      - build-ruby-gcc
+      - build-ruby-clang
       - nix
     runs-on: ubuntu-24.04
     steps:
