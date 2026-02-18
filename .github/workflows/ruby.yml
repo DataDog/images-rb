@@ -1,0 +1,51 @@
+name: Ruby
+
+on:
+  workflow_dispatch:
+    inputs:
+      push:
+        description: Push images
+        required: true
+        type: boolean
+        default: true
+  workflow_call:
+    inputs:
+      push:
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  # Stage 1: Build all base images (gnu, musl, centos)
+  base:
+    uses: ./.github/workflows/build-ruby.yml
+    with:
+      push: ${{ inputs.push || false }}
+    secrets: inherit
+
+  # Stage 2: Build musl compiler images (musl.gcc, musl.clang)
+  #
+  # These depend on the base musl images existing in the registry.
+  # The compiler Dockerfiles FROM the release tag (e.g. FROM ...ruby:3.3-musl)
+  # but _build-image.yml uses --build-context to override it with the
+  # commit-tagged base image from this pipeline run, so correctness does not
+  # depend on the release tag being pushed.
+  #
+  # gcc and clang are independent of each other and can run in parallel.
+  gcc:
+    needs: base
+    uses: ./.github/workflows/build-ruby-compilers.yml
+    with:
+      push: ${{ inputs.push }}
+      dockerfile_suffix: ".gcc"
+      tag_suffix: "-gcc"
+    secrets: inherit
+
+  clang:
+    needs: base
+    uses: ./.github/workflows/build-ruby-compilers.yml
+    with:
+      push: ${{ inputs.push }}
+      dockerfile_suffix: ".clang"
+      tag_suffix: "-clang"
+    secrets: inherit

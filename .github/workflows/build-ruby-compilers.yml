@@ -1,0 +1,121 @@
+name: Build Ruby Compilers
+
+on:
+  workflow_dispatch:
+    inputs:
+      push:
+        description: Push images
+        required: true
+        type: boolean
+        default: true
+      dockerfile_suffix:
+        description: "Dockerfile suffix (e.g. .gcc, .clang)"
+        required: true
+        type: string
+      tag_suffix:
+        description: "Tag suffix (e.g. -gcc, -clang)"
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      push:
+        required: false
+        type: boolean
+        default: false
+      dockerfile_suffix:
+        required: true
+        type: string
+      tag_suffix:
+        required: true
+        type: string
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # musl
+          - engine: ruby
+            version: "2.1"
+            libc: musl
+            arch: ["x86_64"]
+          - engine: ruby
+            version: "2.2"
+            libc: musl
+            arch: ["x86_64"]
+          - engine: ruby
+            version: "2.3"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.4"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.5"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.6"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.7"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.0"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.1"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.2"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.3"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.4"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.5"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "4.0"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: jruby
+            version: "9.2"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: jruby
+            version: "9.3"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: jruby
+            version: "9.4"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: jruby
+            version: "10.0"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+    name: ${{ matrix.engine }}:${{ matrix.version }}-${{ matrix.libc }}${{ inputs.tag_suffix }}
+    uses: ./.github/workflows/_build-image.yml
+    with:
+      engine: ${{ matrix.engine }}
+      version: ${{ matrix.version }}
+      libc: ${{ matrix.libc }}
+      arch: ${{ toJSON(matrix.arch) }}
+      push: ${{ inputs.push || false }}
+      dockerfile_suffix: ${{ inputs.dockerfile_suffix }}
+      tag_suffix: ${{ inputs.tag_suffix }}
+    secrets: inherit
