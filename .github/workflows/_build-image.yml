@@ -21,7 +21,10 @@ on:
         default: false
       # For building variant Dockerfiles (e.g. .gcc, .clang)
       # Dockerfile used: Dockerfile.{libc}{dockerfile_suffix}
-      # Tag produced:    {version}-{libc}{tag_suffix}-g{sha}
+      # Tags produced:
+      #   RUNID_TAG:   {version}-{libc}{tag_suffix}-gha{run_id}-g{sha}  (per-run, unique)
+      #   COMMIT_TAG:  {version}-{libc}{tag_suffix}-g{sha}              (per-commit, promoted)
+      #   RELEASE_TAG: {version}-{libc}{tag_suffix}                     (release, promoted)
       dockerfile_suffix:
         required: false
         type: string
@@ -63,20 +66,51 @@ jobs:
           persist-credentials: false
           fetch-depth: 20
 
+      # Variables:
+      #   SRC                = src/engines/{engine}/{version}                   # build context directory
+      #   IMAGE              = {registry}/{repo}/engines/{engine}               # image name (without tag)
+      #   DOCKERFILE         = SRC/Dockerfile.{libc}{dockerfile_suffix}         # e.g. .../Dockerfile.musl.gcc
+      #   REPRO_RUN_KEY      = contents of .repro_run_key                       # cache-busting key for non-reproducible steps
+      #   SOURCE_DATE_EPOCH  = 315532800                                        # 1980-01-01 00:00:00 UTC, for reproducible builds
+      #
+      # Tag derivation:
+      #   BASE_RELEASE_TAG = {version}-{libc}                                   # 4.0-musl
+      #   ├─ BASE_COMMIT_TAG  = BASE_RELEASE_TAG-g{sha}                         # 4.0-musl-gabcdef
+      #   └─ BASE_RUNID_TAG   = BASE_RELEASE_TAG-gha{run_id}-g{sha}             # 4.0-musl-gha12345-gabcdef
+      #   RELEASE_TAG = BASE_RELEASE_TAG{tag_suffix}                            # 4.0-musl-gcc
+      #   ├─ COMMIT_TAG  = RELEASE_TAG-g{sha}                                   # 4.0-musl-gcc-gabcdef
+      #   └─ RUNID_TAG   = RELEASE_TAG-gha{run_id}-g{sha}                       # 4.0-musl-gcc-gha12345-gabcdef
+      #
+      # Tag usage:
+      #   Per-arch push tag:     RUNID_TAG-{arch}         (unique per run, no race possible)
+      #   Multiarch manifest:    RUNID_TAG                (unique per run, assembled in join)
+      #   --build-context:       BASE_RELEASE_TAG → BASE_RUNID_TAG  (pins FROM to this run's base)
+      #   cache_from:            RELEASE_TAG-g{ancestor_sha}, RELEASE_TAG  (commit-keyed, not run-keyed)
+      #   Promotion (always):    COMMIT_TAG  ← retag from RUNID_TAG  (may race on same commit — OK, same content)
+      #   Promotion (on push):   RELEASE_TAG ← retag from RUNID_TAG
       - name: Set variables
         id: vars
         run: |
           echo "SRC=src/engines/${{ inputs.engine }}/${{ inputs.version }}" >> $GITHUB_OUTPUT
           echo "IMAGE=${{ env.REGISTRY }}/${{ env.REPO }}/engines/${{ inputs.engine }}" >> $GITHUB_OUTPUT
           echo "DOCKERFILE=src/engines/${{ inputs.engine }}/${{ inputs.version }}/Dockerfile.${{ inputs.libc }}${{ inputs.dockerfile_suffix }}" >> $GITHUB_OUTPUT
+
+          # Base tags (without tag_suffix, for cache keys and --build-context)
           BASE_RELEASE_TAG="${{ inputs.version }}-${{ inputs.libc }}"
           BASE_COMMIT_TAG="${BASE_RELEASE_TAG}-g${{ github.sha }}"
+          BASE_RUNID_TAG="${BASE_RELEASE_TAG}-gha${{ github.run_id }}-g${{ github.sha }}"
           echo "BASE_RELEASE_TAG=${BASE_RELEASE_TAG}" >> $GITHUB_OUTPUT
           echo "BASE_COMMIT_TAG=${BASE_COMMIT_TAG}" >> $GITHUB_OUTPUT
+          echo "BASE_RUNID_TAG=${BASE_RUNID_TAG}" >> $GITHUB_OUTPUT
+
+          # Image tags (with tag_suffix)
           RELEASE_TAG="${BASE_RELEASE_TAG}${{ inputs.tag_suffix }}"
           COMMIT_TAG="${RELEASE_TAG}-g${{ github.sha }}"
+          RUNID_TAG="${RELEASE_TAG}-gha${{ github.run_id }}-g${{ github.sha }}"
           echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_OUTPUT
           echo "COMMIT_TAG=${COMMIT_TAG}" >> $GITHUB_OUTPUT
+          echo "RUNID_TAG=${RUNID_TAG}" >> $GITHUB_OUTPUT
+
           echo "REPRO_RUN_KEY=$(cat .repro_run_key)" >> $GITHUB_OUTPUT
           echo "SOURCE_DATE_EPOCH=315532800" >> $GITHUB_OUTPUT # 1980-01-01 00:00:00 UTC
 
@@ -85,9 +119,12 @@ jobs:
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
 
       # Build and push the single-arch image to the registry.
-      # The arch-qualified COMMIT_TAG makes this safe against concurrent runs.
+      # The arch-qualified RUNID_TAG is unique per workflow run, making this
+      # safe even when two runs build the same commit concurrently.
       - name: Build and push single-arch image
         run: |
+          # Cache from ancestor commits (commit-keyed, not run-keyed, since
+          # one can't know parent workflow run IDs)
           cache_from=()
           parents=( $(git rev-list --parents -n 10 ${{ github.sha }}) )
           for sha in "${parents[@]}"; do
@@ -96,11 +133,11 @@ jobs:
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
 
           # When building a variant (e.g. musl.gcc), override the FROM reference
-          # to use the commit-tagged base image from this pipeline run, not the
+          # to use the run-tagged base image from this pipeline run, not the
           # release tag which may be stale or from a concurrent run.
           build_context=()
           if [ -n "${{ inputs.dockerfile_suffix }}" ]; then
-            build_context+=(--build-context "${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.BASE_RELEASE_TAG }}=docker-image://${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.BASE_COMMIT_TAG }}")
+            build_context+=(--build-context "${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.BASE_RELEASE_TAG }}=docker-image://${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.BASE_RUNID_TAG }}")
           fi
 
           docker buildx build ${{ steps.vars.outputs.SRC }} \
@@ -112,7 +149,7 @@ jobs:
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             --platform linux/${{ matrix.arch }} \
             -f ${{ steps.vars.outputs.DOCKERFILE }} \
-            --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.COMMIT_TAG }}-${{ matrix.arch }}
+            --tag ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}-${{ matrix.arch }}
 
       # Load the image locally for testing.
       # The layers are already in the local buildx cache from the previous step, so this is fast.
@@ -120,12 +157,12 @@ jobs:
         run: |
           build_context=()
           if [ -n "${{ inputs.dockerfile_suffix }}" ]; then
-            build_context+=(--build-context "${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.BASE_RELEASE_TAG }}=docker-image://${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.BASE_COMMIT_TAG }}")
+            build_context+=(--build-context "${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.BASE_RELEASE_TAG }}=docker-image://${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.BASE_RUNID_TAG }}")
           fi
 
           docker buildx build ${{ steps.vars.outputs.SRC }} \
             "${build_context[@]}" \
-            --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.COMMIT_TAG }}-${{ matrix.arch }} \
+            --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}-${{ matrix.arch }} \
             --load \
             --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} \
             --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} \
@@ -165,8 +202,10 @@ jobs:
           BASE_RELEASE_TAG="${{ inputs.version }}-${{ inputs.libc }}"
           RELEASE_TAG="${BASE_RELEASE_TAG}${{ inputs.tag_suffix }}"
           COMMIT_TAG="${RELEASE_TAG}-g${{ github.sha }}"
+          RUNID_TAG="${RELEASE_TAG}-gha${{ github.run_id }}-g${{ github.sha }}"
           echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_OUTPUT
           echo "COMMIT_TAG=${COMMIT_TAG}" >> $GITHUB_OUTPUT
+          echo "RUNID_TAG=${RUNID_TAG}" >> $GITHUB_OUTPUT
 
       - name: Log in to the Container Registry
         run: |
@@ -174,24 +213,33 @@ jobs:
 
       # Combine the per-arch images into one multiarch manifest list.
       # This only manipulates manifests in the registry — no image data is pulled.
-      - name: Create and push multiarch manifest (commit tag)
+      - name: Create and push multiarch manifest (run tag)
         run: |
           sources=()
           for arch in $(echo '${{ inputs.arch }}' | jq -r '.[]'); do
-            sources+=("${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.COMMIT_TAG }}-${arch}")
+            sources+=("${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}-${arch}")
           done
 
           docker buildx imagetools create \
-            -t ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.COMMIT_TAG }} \
+            -t ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }} \
             "${sources[@]}"
 
-      # Retag the multiarch manifest as the release tag.
+      # Promote the run-tagged manifest to the commit tag.
+      # This may race if two workflow runs build the same commit concurrently,
+      # but that's acceptable since they produce identical content.
+      - name: Create and push multiarch manifest (commit tag)
+        run: |
+          docker buildx imagetools create \
+            -t ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.COMMIT_TAG }} \
+            ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}
+
+      # Promote the manifest to the release tag.
       - name: Create and push multiarch manifest (release tag)
         if: ${{ inputs.push }}
         run: |
           docker buildx imagetools create \
             -t ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }} \
-            ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.COMMIT_TAG }}
+            ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}
 
       # For gnu base images, also push the unqualified version tag (e.g. "3.3" without "-gnu")
       - name: Create and push multiarch manifest (unqualified release tag)
@@ -199,4 +247,4 @@ jobs:
         run: |
           docker buildx imagetools create \
             -t ${{ steps.vars.outputs.IMAGE }}:${{ inputs.version }} \
-            ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.COMMIT_TAG }}
+            ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}
