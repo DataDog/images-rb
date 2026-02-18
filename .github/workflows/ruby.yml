@@ -17,18 +17,20 @@ on:
 
 jobs:
   # Stage 1: Build all base images (gnu, musl, centos)
-  #
-  # Release tags are always pushed here because downstream compiler stages
-  # FROM the release tag (e.g. Dockerfile.musl.gcc does FROM ...ruby:3.3-musl)
   base:
     uses: ./.github/workflows/build-ruby.yml
     with:
-      push: true
+      push: ${{ inputs.push || false }}
     secrets: inherit
 
   # Stage 2: Build musl compiler images (musl.gcc, musl.clang)
   #
-  # These depend on the base musl images being pushed to the registry.
+  # These depend on the base musl images existing in the registry.
+  # The compiler Dockerfiles FROM the release tag (e.g. FROM ...ruby:3.3-musl)
+  # but _build-image.yml uses --build-context to override it with the
+  # commit-tagged base image from this pipeline run, so correctness does not
+  # depend on the release tag being pushed.
+  #
   # gcc and clang are independent of each other and can run in parallel.
   gcc:
     needs: base

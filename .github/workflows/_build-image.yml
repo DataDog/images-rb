@@ -68,9 +68,15 @@ jobs:
         run: |
           echo "SRC=src/engines/${{ inputs.engine }}/${{ inputs.version }}" >> $GITHUB_OUTPUT
           echo "IMAGE=${{ env.REGISTRY }}/${{ env.REPO }}/engines/${{ inputs.engine }}" >> $GITHUB_OUTPUT
-          echo "RELEASE_TAG=${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}" >> $GITHUB_OUTPUT
-          echo "COMMIT_TAG=${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}-g${{ github.sha }}" >> $GITHUB_OUTPUT
           echo "DOCKERFILE=src/engines/${{ inputs.engine }}/${{ inputs.version }}/Dockerfile.${{ inputs.libc }}${{ inputs.dockerfile_suffix }}" >> $GITHUB_OUTPUT
+          BASE_RELEASE_TAG="${{ inputs.version }}-${{ inputs.libc }}"
+          BASE_COMMIT_TAG="${BASE_RELEASE_TAG}-g${{ github.sha }}"
+          echo "BASE_RELEASE_TAG=${BASE_RELEASE_TAG}" >> $GITHUB_OUTPUT
+          echo "BASE_COMMIT_TAG=${BASE_COMMIT_TAG}" >> $GITHUB_OUTPUT
+          RELEASE_TAG="${BASE_RELEASE_TAG}${{ inputs.tag_suffix }}"
+          COMMIT_TAG="${RELEASE_TAG}-g${{ github.sha }}"
+          echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_OUTPUT
+          echo "COMMIT_TAG=${COMMIT_TAG}" >> $GITHUB_OUTPUT
           echo "REPRO_RUN_KEY=$(cat .repro_run_key)" >> $GITHUB_OUTPUT
           echo "SOURCE_DATE_EPOCH=315532800" >> $GITHUB_OUTPUT # 1980-01-01 00:00:00 UTC
 
@@ -89,8 +95,17 @@ jobs:
           done
           cache_from+=(--cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
 
+          # When building a variant (e.g. musl.gcc), override the FROM reference
+          # to use the commit-tagged base image from this pipeline run, not the
+          # release tag which may be stale or from a concurrent run.
+          build_context=()
+          if [ -n "${{ inputs.dockerfile_suffix }}" ]; then
+            build_context+=(--build-context "${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.BASE_RELEASE_TAG }}=docker-image://${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.BASE_COMMIT_TAG }}")
+          fi
+
           docker buildx build ${{ steps.vars.outputs.SRC }} \
             "${cache_from[@]}" \
+            "${build_context[@]}" \
             --output=type=image,push=true \
             --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} \
             --build-arg SOURCE_DATE_EPOCH=${{ steps.vars.outputs.SOURCE_DATE_EPOCH }} \
@@ -103,7 +118,13 @@ jobs:
       # The layers are already in the local buildx cache from the previous step, so this is fast.
       - name: Load image for testing
         run: |
+          build_context=()
+          if [ -n "${{ inputs.dockerfile_suffix }}" ]; then
+            build_context+=(--build-context "${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.BASE_RELEASE_TAG }}=docker-image://${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.BASE_COMMIT_TAG }}")
+          fi
+
           docker buildx build ${{ steps.vars.outputs.SRC }} \
+            "${build_context[@]}" \
             --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.COMMIT_TAG }}-${{ matrix.arch }} \
             --load \
             --build-arg REPRO_RUN_KEY=${{ steps.vars.outputs.REPRO_RUN_KEY }} \
@@ -141,8 +162,11 @@ jobs:
         id: vars
         run: |
           echo "IMAGE=${{ env.REGISTRY }}/${{ env.REPO }}/engines/${{ inputs.engine }}" >> $GITHUB_OUTPUT
-          echo "RELEASE_TAG=${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}" >> $GITHUB_OUTPUT
-          echo "COMMIT_TAG=${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}-g${{ github.sha }}" >> $GITHUB_OUTPUT
+          BASE_RELEASE_TAG="${{ inputs.version }}-${{ inputs.libc }}"
+          RELEASE_TAG="${BASE_RELEASE_TAG}${{ inputs.tag_suffix }}"
+          COMMIT_TAG="${RELEASE_TAG}-g${{ github.sha }}"
+          echo "RELEASE_TAG=${RELEASE_TAG}" >> $GITHUB_OUTPUT
+          echo "COMMIT_TAG=${COMMIT_TAG}" >> $GITHUB_OUTPUT
 
       - name: Log in to the Container Registry
         run: |
