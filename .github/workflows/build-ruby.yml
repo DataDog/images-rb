@@ -22,6 +22,18 @@ jobs:
         include:
           # gnu
           - engine: ruby
+            version: "1.8"
+            libc: gnu
+            arch: ["x86_64"]
+          - engine: ruby
+            version: "1.9"
+            libc: gnu
+            arch: ["x86_64"]
+          - engine: ruby
+            version: "2.0"
+            libc: gnu
+            arch: ["x86_64"]
+          - engine: ruby
             version: "2.1"
             libc: gnu
             arch: ["x86_64", "aarch64"]

@@ -1,3 +1,4 @@
+# platforms: linux/x86_64
 # strip-tags: gnu
 # append-tags: gcc
 
@@ -52,9 +53,9 @@ GEMRC
 
 ENV LANG="en_US.UTF-8"                                                                      \
     LANGUAGE="en_US:en"                                                                     \
-    RUBY_MAJOR="2.3"                                                                        \
-    RUBY_VERSION="2.3.8"                                                                    \
-    RUBY_DOWNLOAD_SHA256="910f635d84fd0d81ac9bdee0731279e6026cb4cd1315bbbb5dfb22e09c5c1dfe"
+    RUBY_MAJOR="1.8"                                                                        \
+    RUBY_VERSION="1.8.7-p376"                                                               \
+    RUBY_DOWNLOAD_SHA256="8dfe254590e77b82ceaffba29ad38d1cee7c4180ab50340fecdb76a6fa59330b"
 
 # - Compile Ruby with `--disable-shared`
 # - Update gem version
@@ -83,7 +84,7 @@ apt-get install -y \
     libffi-dev \
     --no-install-recommends
 
-# Ruby 2.3 needs OpenSSL 1.0.x; Debian 11 ships OpenSSL 1.1.x which is incompatible
+# Ruby 1.8 needs OpenSSL 1.0.x; Debian 11's OpenSSL 1.1.x is incompatible
 OPENSSL_VERSION='1.0.2u'
 OPENSSL_SHA256='ecd0c6ffb493dd06707d38b14bb4d8c2288bb7033735606569d8f90f89669d16'
 
@@ -106,18 +107,19 @@ make install
 echo "/usr/local/ssl/lib" > /etc/ld.so.conf.d/openssl.conf
 ldconfig
 
-# point OpenSSL to system CA certificates so SSL verification works
+# point OpenSSL to the system CA certificates so SSL verification works
 rmdir /usr/local/ssl/certs
 ln -s /etc/ssl/certs /usr/local/ssl/certs
 
 cd /
 rm -r /usr/src/openssl
 
-curl -o ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz"
-echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.xz" | sha256sum --check --strict
+# Ruby 1.8 is downloaded from GitHub archive (not cache.ruby-lang.org)
+curl -L -o ruby.tar.gz "https://github.com/ruby/ruby/archive/f48ae0d10c5b586db5748b0d4b645c7e9ff5d52e.tar.gz"
+echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.gz" | sha256sum --check --strict
 mkdir -p /usr/src/ruby
-tar -xJf ruby.tar.xz -C /usr/src/ruby --strip-components=1
-rm ruby.tar.xz
+tar -xzf ruby.tar.gz -C /usr/src/ruby --strip-components=1
+rm ruby.tar.gz
 
 cd /usr/src/ruby
 
@@ -130,6 +132,38 @@ cd /usr/src/ruby
 } > file.c.new
 mv file.c.new file.c
 
+# https://github.com/rbenv/ruby-build/issues/444
+# https://bugs.ruby-lang.org/issues/9065
+# https://github.com/ruby/ruby/commit/f895841e2c2861f8d3ea2247817d6ffd35dff71c.patch
+patch -p1 <<'PATCH'
+diff --git a/ext/openssl/ossl_pkey_ec.c b/ext/openssl/ossl_pkey_ec.c
+index 8e6d88f60609b3..29e28ca2f4420f 100644
+--- a/ext/openssl/ossl_pkey_ec.c
++++ b/ext/openssl/ossl_pkey_ec.c
+@@ -762,8 +762,10 @@ static VALUE ossl_ec_group_initialize(int argc, VALUE *argv, VALUE self)
+                 method = EC_GFp_mont_method();
+             } else if (id == s_GFp_nist) {
+                 method = EC_GFp_nist_method();
++#if !defined(OPENSSL_NO_EC2M)
+             } else if (id == s_GF2m_simple) {
+                 method = EC_GF2m_simple_method();
++#endif
+             }
+
+             if (method) {
+@@ -817,8 +819,10 @@ static VALUE ossl_ec_group_initialize(int argc, VALUE *argv, VALUE self)
+
+             if (id == s_GFp) {
+                 new_curve = EC_GROUP_new_curve_GFp;
++#if !defined(OPENSSL_NO_EC2M)
+             } else if (id == s_GF2m) {
+                 new_curve = EC_GROUP_new_curve_GF2m;
++#endif
+             } else {
+                 ossl_raise(rb_eArgError, "unknown symbol, must be :GFp or :GF2m");
+             }
+PATCH
+
 autoconf
 
 gnuArch="$(gcc -dumpmachine)"
@@ -138,7 +172,8 @@ gnuArch="$(gcc -dumpmachine)"
     --disable-install-doc \
     --disable-shared \
     --with-openssl-dir=/usr/local/ssl
-make -j "$(nproc)"
+# parallel make causes race conditions in old Ruby's extension build system so we don't use `-j $(nproc)`
+make
 make install
 
 cd /
@@ -147,8 +182,52 @@ rm -r /usr/src/ruby
 # verify ruby is not installed via apt
 if dpkg -l ruby 2>/dev/null | grep -q '^ii'; then exit 1; fi
 
+# Ruby 1.8 doesn't come with rubygems, so we need to bootstrap it
+curl -o rubygems.tar.gz "https://rubygems.org/rubygems/rubygems-1.6.2.tgz"
+echo "cb5261818b931b5ea2cb54bc1d583c47823543fcf9682f0d6298849091c1cea7 *rubygems.tar.gz" | sha256sum --check --strict
+mkdir -p /usr/src/rubygems
+tar -xzf rubygems.tar.gz -C /usr/src/rubygems --strip-components=1
+rm rubygems.tar.gz
+
+cd /usr/src/rubygems
+ruby setup.rb
+cd /
+rm -r /usr/src/rubygems
+
 # update gem version
-gem update --system 3.3.27
+gem update --system 2.7.11
+gem install bundler --version 1.17.3 --force
+
+# patch away annoying deprecations
+cd /usr/local/lib/ruby/gems/1.8/gems/rubygems-update-2.7.11/lib
+patch -p1 <<'PATCH'
+--- a/rubygems/deprecate.rb	2024-11-21 14:48:56
++++ b/rubygems/deprecate.rb	2024-11-21 14:49:45
+@@ -24,7 +24,7 @@
+ module Gem::Deprecate
+
+   def self.skip # :nodoc:
+-    @skip ||= false
++    @skip ||= true
+   end
+
+   def self.skip= v # :nodoc:
+PATCH
+cd /usr/local/lib/ruby/site_ruby/1.8
+patch -p1 <<'PATCH'
+--- a/rubygems/deprecate.rb	2024-11-21 14:48:56
++++ b/rubygems/deprecate.rb	2024-11-21 14:49:45
+@@ -24,7 +24,7 @@
+ module Gem::Deprecate
+
+   def self.skip # :nodoc:
+-    @skip ||= false
++    @skip ||= true
+   end
+
+   def self.skip= v # :nodoc:
+PATCH
+cd /
 
 # rough smoke test
 ruby --version

@@ -1,109 +1,8 @@
 # strip-tags: gnu
 # append-tags: gcc
 
-# ruby:2.2.10-jessie was based on jessie, and had a aarch64 image
-# aarch64 used to be supported upon release but is not part of LTS,
-# so archive.debian.org does not contain aarch64: https://www.debian.org/releases/jessie/
-
-# Note: See the "Publishing updates to images" note in ./README.md for how to publish new builds of this container image
-
-# Here be dragons: Last time we tried to move away from Debian stretch, we ran into issues with two gems that are used in some
-# of our CI tests/test apps.
-# If you're going to try your luck, make sure that the following work after your changes:
-# gem install mysql
-#
-# taken from https://github.com/docker-library/ruby/blob/b5ef401d348ca9b1d9f6a5cb4b25f32bf013daca/2.2/jessie/Dockerfile
-FROM buildpack-deps:stretch AS ruby-2.2.10-stretch
-
-# skip installing gem documentation
-RUN mkdir -p /usr/local/etc \
-    && { \
-    echo 'install: --no-document'; \
-    echo 'update: --no-document'; \
-    } >> /usr/local/etc/gemrc
-
-ENV RUBY_MAJOR 2.2
-ENV RUBY_VERSION 2.2.10
-ENV RUBY_DOWNLOAD_SHA256 bf77bcb7e6666ccae8d0882ea12b05f382f963f0a9a5285a328760c06a9ab650
-ENV RUBYGEMS_VERSION 2.7.11
-ENV BUNDLER_VERSION 1.17.3
-
-# Pull packages from debian archive, old repos don't work any more
-RUN echo "deb [trusted=yes] http://archive.debian.org/debian/ stretch main contrib non-free" | tee /etc/apt/sources.list
-
-# some of ruby's build scripts are written in ruby
-#   we purge system ruby later to make sure our final image uses what we just built
-RUN set -ex \
-    && apt-get update \
-    # ruby 2.2 needs libssl1.0-dev
-    && apt-get install -y --no-install-recommends wget \
-    && apt-get remove -y libssl-dev libcurl4-openssl-dev \
-    && ARCH=$(dpkg --print-architecture) \
-    && wget "https://snapshot.debian.org/archive/debian-security/20220317T093342Z/pool/updates/main/o/openssl1.0/libssl1.0.2_1.0.2u-1~deb9u7_${ARCH}.deb" \
-    && dpkg -i libssl1.0.2*.deb \
-    && rm -rf libssl1.0.2*.deb \
-    && wget "https://snapshot.debian.org/archive/debian-security/20220317T093342Z/pool/updates/main/o/openssl1.0/libssl1.0-dev_1.0.2u-1~deb9u7_${ARCH}.deb" \
-    && dpkg -i libssl1.0-dev*.deb \
-    && rm -rf libssl1.0-dev*.deb \
-    # some of ruby's build scripts are written in ruby
-    #   we purge system ruby later to make sure our final image uses what we just built
-    && buildDeps=' \
-    bison \
-    dpkg-dev \
-    libgdbm-dev \
-    ruby \
-    ' \
-    && apt-get install -y --no-install-recommends $buildDeps \
-    && rm -rf /var/lib/apt/lists/* \
-    \
-    && wget -O ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz" \
-    && echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.xz" | sha256sum -c - \
-    \
-    && mkdir -p /usr/src/ruby \
-    && tar -xJf ruby.tar.xz -C /usr/src/ruby --strip-components=1 \
-    && rm ruby.tar.xz \
-    \
-    && cd /usr/src/ruby \
-    \
-    # hack in "ENABLE_PATH_CHECK" disabling to suppress:
-    #   warning: Insecure world writable dir
-    && { \
-    echo '#define ENABLE_PATH_CHECK 0'; \
-    echo; \
-    cat file.c; \
-    } > file.c.new \
-    && mv file.c.new file.c \
-    \
-    && autoconf \
-    && gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)" \
-    && ./configure \
-    --build="$gnuArch" \
-    --disable-install-doc \
-    --enable-shared \
-    && make -j "$(nproc)" \
-    && make install \
-    \
-    && apt-get purge -y --auto-remove $buildDeps \
-    && cd / \
-    && rm -r /usr/src/ruby
-
-# \
-# && gem update --system "$RUBYGEMS_VERSION" \
-# && gem install bundler --version "$BUNDLER_VERSION" --force \
-# && rm -r /root/.gem/
-
-# don't create ".bundle" in all our apps
-ENV GEM_HOME /usr/local/bundle
-ENV BUNDLE_SILENCE_ROOT_WARNING=1 \
-    BUNDLE_APP_CONFIG="$GEM_HOME"
-ENV PATH $GEM_HOME/bin:$PATH
-
-# adjust permissions of a few directories for running "gem install" as an arbitrary user
-RUN mkdir -p "$GEM_HOME" && chmod 1777 "$GEM_HOME"
-
-CMD [ "irb" ]
-
-FROM ruby-2.2.10-stretch
+# Debian 11 (bullseye)
+FROM public.ecr.aws/docker/library/debian:11
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
 # variability: an identical command would be the same from `docker build`'s
@@ -136,16 +35,131 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
 # updated by changing the `REPRO_RUN_KEY`.
 RUN true "${REPRO_RUN_KEY}" && apt-get update
 
-# Install system dependencies for building
-RUN apt-get install -y libc6-dev gcc git locales tzdata --no-install-recommends && rm -rf /var/lib/apt/lists/*
+# Install locale and timezone support first
+RUN apt-get install -y locales tzdata --no-install-recommends
 
 # Ensure sane locale (Uncomment `en_US.UTF-8` from `/etc/locale.gen` before running `locale-gen`)
 RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
 
 # Ensure consistent timezone
 RUN ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime
+
+# Skip installing gem documentation
+COPY <<GEMRC /usr/local/etc/gemrc
+install: --no-document
+update: --no-document
+GEMRC
+
+ENV LANG="en_US.UTF-8"                                                                      \
+    LANGUAGE="en_US:en"                                                                     \
+    RUBY_MAJOR="2.2"                                                                        \
+    RUBY_VERSION="2.2.10"                                                                   \
+    RUBY_DOWNLOAD_SHA256="bf77bcb7e6666ccae8d0882ea12b05f382f963f0a9a5285a328760c06a9ab650"
+
+# - Compile Ruby with `--disable-shared`
+# - Update gem version
+
+RUN <<SHELL
+set -eux
+
+apt-get install -y \
+    curl \
+    ca-certificates \
+    gcc \
+    g++ \
+    make \
+    autoconf \
+    bison \
+    patch \
+    libc6-dev \
+    build-essential \
+    git \
+    xz-utils \
+    zlib1g-dev \
+    libyaml-dev \
+    libgdbm-dev \
+    libreadline-dev \
+    libncurses5-dev \
+    libffi-dev \
+    --no-install-recommends
+
+# Ruby 2.2 needs OpenSSL 1.0.x; Debian 11 ships 1.1.x which is incompatible
+OPENSSL_VERSION='1.0.2u'
+OPENSSL_SHA256='ecd0c6ffb493dd06707d38b14bb4d8c2288bb7033735606569d8f90f89669d16'
+
+curl -L -o openssl.tar.gz "https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz"
+echo "$OPENSSL_SHA256 *openssl.tar.gz" | sha256sum --check --strict
+mkdir -p /usr/src/openssl
+tar -xzf openssl.tar.gz -C /usr/src/openssl --strip-components=1
+rm openssl.tar.gz
+
+cd /usr/src/openssl
+
+./config \
+    --prefix=/usr/local/ssl \
+    --openssldir=/usr/local/ssl \
+    shared \
+    zlib
+make
+make install
+
+echo "/usr/local/ssl/lib" > /etc/ld.so.conf.d/openssl.conf
+ldconfig
+
+# point OpenSSL to system CA certificates so SSL verification works
+rmdir /usr/local/ssl/certs
+ln -s /etc/ssl/certs /usr/local/ssl/certs
+
+cd /
+rm -r /usr/src/openssl
+
+curl -o ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz"
+echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.xz" | sha256sum --check --strict
+mkdir -p /usr/src/ruby
+tar -xJf ruby.tar.xz -C /usr/src/ruby --strip-components=1
+rm ruby.tar.xz
+
+cd /usr/src/ruby
+
+# hack in "ENABLE_PATH_CHECK" disabling to suppress:
+#   warning: Insecure world writable dir
+{
+    echo '#define ENABLE_PATH_CHECK 0'
+    echo
+    cat file.c
+} > file.c.new
+mv file.c.new file.c
+
+autoconf
+
+gnuArch="$(gcc -dumpmachine)"
+./configure \
+    --build="$gnuArch" \
+    --disable-install-doc \
+    --disable-shared \
+    --with-openssl-dir=/usr/local/ssl
+make -j "$(nproc)"
+make install
+
+cd /
+rm -r /usr/src/ruby
+
+# verify ruby is not installed via apt
+if dpkg -l ruby 2>/dev/null | grep -q '^ii'; then exit 1; fi
+
+# update gem version
+gem update --system 2.7.11
+gem install bundler --version 1.17.3 --force
+
+# rough smoke test
+ruby --version
+gem --version
+bundle --version
+
+# clean up apt lists
+rm -rf /var/lib/apt/lists/*
+
+SHELL
 
 # don't create ".bundle" in all our apps
 ENV GEM_HOME /usr/local/bundle
@@ -156,13 +170,4 @@ ENV PATH $GEM_HOME/bin:$PATH
 # adjust permissions of a few directories for running "gem install" as an arbitrary user
 RUN mkdir -p "$GEM_HOME" && chmod 1777 "$GEM_HOME"
 
-## Install a pinned RubyGems and Bundler
-RUN gem update --system 2.7.11
-RUN gem install bundler --version 1.17.3
-
-# Install additional gems that are in CRuby but missing from the above
-# JRuby install distribution. These are version-pinned for reproducibility.
-RUN gem install rake:13.0.6
-
-# Start IRB as a default
 CMD [ "irb" ]

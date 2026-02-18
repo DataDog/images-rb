@@ -5,7 +5,7 @@ FROM public.ecr.aws/docker/library/centos:centos7.9.2009
 
 # Set yum vault
 RUN <<SHELL
-set -euxo pipefail
+set -eux
 
 if [ "$(uname -m)" != "x86_64" ]; then
     repo_version="altarch/7.9.2009"
@@ -94,7 +94,7 @@ ENV LANG="en_US.UTF-8"                                                          
 # - Update gem version
 
 RUN <<SHELL
-set -euxo pipefail
+set -eux
 
 yum install -y xz gcc automake bison zlib-devel libyaml-devel openssl-devel gdbm-devel readline-devel ncurses-devel libffi-devel
 
@@ -122,7 +122,8 @@ gnuArch="$(uname -m)-linux-gnu"
     --build="$gnuArch" \
     --disable-install-doc \
     --disable-shared
-make -j "$(nproc)"
+# parallel make causes race conditions in old Ruby's extension build system so we don't use `-j $(nproc)`
+make
 make install
 
 # 	find /usr/local -type f -executable -not \( -name '*tkinter*' \) -exec ldd '{}' ';' \

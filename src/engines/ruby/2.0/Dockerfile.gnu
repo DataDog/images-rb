@@ -1,8 +1,9 @@
+# platforms: linux/x86_64
 # strip-tags: gnu
 # append-tags: gcc
 
-# Debian 12 (bookworm)
-FROM public.ecr.aws/docker/library/debian:12
+# Debian 11 (bullseye)
+FROM public.ecr.aws/docker/library/debian:11
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
 # variability: an identical command would be the same from `docker build`'s
@@ -52,9 +53,9 @@ GEMRC
 
 ENV LANG="en_US.UTF-8"                                                                      \
     LANGUAGE="en_US:en"                                                                     \
-    RUBY_MAJOR="3.2"                                                                        \
-    RUBY_VERSION="3.2.9"                                                                    \
-    RUBY_DOWNLOAD_SHA256="cf6699d0084c588e7944d92e1a8edda28b1cc3ee471a1f0aebb4b3d32c9753b2"
+    RUBY_MAJOR="2.0"                                                                        \
+    RUBY_VERSION="2.0.0-p648"                                                               \
+    RUBY_DOWNLOAD_SHA256="22fe97739110ba9171b13fc4dcd1a92e767f16769de3593ee41ef1283d218402"
 
 # - Compile Ruby with `--disable-shared`
 # - Update gem version
@@ -81,40 +82,37 @@ apt-get install -y \
     libreadline-dev \
     libncurses5-dev \
     libffi-dev \
-    libssl-dev \
     --no-install-recommends
 
-rustArch=
-rustupUrl=
-rustupSha256=
+# Ruby 2.0 needs OpenSSL 1.0.x; Debian 11 ships OpenSSL 1.1.x which is incompatible
+OPENSSL_VERSION='1.0.2u'
+OPENSSL_SHA256='ecd0c6ffb493dd06707d38b14bb4d8c2288bb7033735606569d8f90f89669d16'
 
-case "$(uname -m)" in
-    'x86_64')
-        rustArch='x86_64-unknown-linux-gnu'
-        rustupUrl='https://static.rust-lang.org/rustup/archive/1.26.0/x86_64-unknown-linux-gnu/rustup-init'
-        rustupSha256='0b2f6c8f85a3d02fde2efc0ced4657869d73fccfce59defb4e8d29233116e6db'
-        ;;
-    'aarch64')
-        rustArch='aarch64-unknown-linux-gnu'
-        rustupUrl='https://static.rust-lang.org/rustup/archive/1.26.0/aarch64-unknown-linux-gnu/rustup-init'
-        rustupSha256='673e336c81c65e6b16dcdede33f4cc9ed0f08bde1dbe7a935f113605292dc800'
-        ;;
-esac
+curl -L -o openssl.tar.gz "https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz"
+echo "$OPENSSL_SHA256 *openssl.tar.gz" | sha256sum --check --strict
+mkdir -p /usr/src/openssl
+tar -xzf openssl.tar.gz -C /usr/src/openssl --strip-components=1
+rm openssl.tar.gz
 
-if [ -n "$rustArch" ]; then
-    mkdir -p /tmp/rust
+cd /usr/src/openssl
 
-    curl -o /tmp/rust/rustup-init "$rustupUrl"
-    echo "$rustupSha256 */tmp/rust/rustup-init" | sha256sum --check --strict
-    chmod +x /tmp/rust/rustup-init
+./config \
+    --prefix=/usr/local/ssl \
+    --openssldir=/usr/local/ssl \
+    shared \
+    zlib
+make
+make install
 
-    export RUSTUP_HOME='/tmp/rust/rustup' CARGO_HOME='/tmp/rust/cargo'
-    export PATH="$CARGO_HOME/bin:$PATH"
-    /tmp/rust/rustup-init -y --no-modify-path --profile minimal --default-toolchain '1.74.1' --default-host "$rustArch"
+echo "/usr/local/ssl/lib" > /etc/ld.so.conf.d/openssl.conf
+ldconfig
 
-    rustc --version
-    cargo --version
-fi
+# point OpenSSL to system CA certificates so SSL verification works
+rmdir /usr/local/ssl/certs
+ln -s /etc/ssl/certs /usr/local/ssl/certs
+
+cd /
+rm -r /usr/src/openssl
 
 curl -o ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz"
 echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.xz" | sha256sum --check --strict
@@ -140,11 +138,10 @@ gnuArch="$(gcc -dumpmachine)"
     --build="$gnuArch" \
     --disable-install-doc \
     --disable-shared \
-    ${rustArch:+--enable-yjit}
-make -j "$(nproc)"
+    --with-openssl-dir=/usr/local/ssl
+# parallel make causes race conditions in old Ruby's extension build system so we don't use `-j $(nproc)`
+make
 make install
-
-rm -rf /tmp/rust
 
 cd /
 rm -r /usr/src/ruby
@@ -153,7 +150,8 @@ rm -r /usr/src/ruby
 if dpkg -l ruby 2>/dev/null | grep -q '^ii'; then exit 1; fi
 
 # update gem version
-gem update --system 3.7.2
+gem update --system 2.7.11
+gem install bundler --version 1.17.3 --force
 
 # rough smoke test
 ruby --version
