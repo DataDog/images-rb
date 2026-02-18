@@ -1,3 +1,4 @@
+# platforms: linux/x86_64
 # strip-tags: gnu
 # append-tags: gcc
 
@@ -52,9 +53,9 @@ GEMRC
 
 ENV LANG="en_US.UTF-8"                                                                      \
     LANGUAGE="en_US:en"                                                                     \
-    RUBY_MAJOR="2.2"                                                                        \
-    RUBY_VERSION="2.2.10"                                                                   \
-    RUBY_DOWNLOAD_SHA256="bf77bcb7e6666ccae8d0882ea12b05f382f963f0a9a5285a328760c06a9ab650"
+    RUBY_MAJOR="2.0"                                                                        \
+    RUBY_VERSION="2.0.0-p648"                                                               \
+    RUBY_DOWNLOAD_SHA256="22fe97739110ba9171b13fc4dcd1a92e767f16769de3593ee41ef1283d218402"
 
 # - Compile Ruby with `--disable-shared`
 # - Update gem version
@@ -83,7 +84,7 @@ apt-get install -y \
     libffi-dev \
     --no-install-recommends
 
-# Ruby 2.2 needs OpenSSL 1.0.x; Debian 11 ships 1.1.x which is incompatible
+# Ruby 2.0 needs OpenSSL 1.0.x; Debian 11 ships OpenSSL 1.1.x which is incompatible
 OPENSSL_VERSION='1.0.2u'
 OPENSSL_SHA256='ecd0c6ffb493dd06707d38b14bb4d8c2288bb7033735606569d8f90f89669d16'
 
@@ -138,7 +139,8 @@ gnuArch="$(gcc -dumpmachine)"
     --disable-install-doc \
     --disable-shared \
     --with-openssl-dir=/usr/local/ssl
-make -j "$(nproc)"
+# parallel make causes race conditions in old Ruby's extension build system so we don't use `-j $(nproc)`
+make
 make install
 
 cd /

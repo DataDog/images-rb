@@ -122,7 +122,8 @@ gnuArch="$(uname -m)-linux-gnu"
     --build="$gnuArch" \
     --disable-install-doc \
     --disable-shared
-make -j "$(nproc)"
+# parallel make causes race conditions in old Ruby's extension build system so we don't use `-j $(nproc)`
+make
 make install
 
 # 	find /usr/local -type f -executable -not \( -name '*tkinter*' \) -exec ldd '{}' ';' \

@@ -1,41 +1,9 @@
 # platforms: linux/x86_64
+# strip-tags: gnu
+# append-tags: gcc
 
-# CentOS 7.9 has glibc 2.17
-FROM public.ecr.aws/docker/library/centos:centos7.9.2009
-
-# Set yum vault
-RUN <<SHELL
-set -eux
-
-if [ "$(uname -m)" != "x86_64" ]; then
-    repo_version="altarch/7.9.2009"
-else
-    repo_version="7.9.2009"
-fi
-
-cat <<EOF > /etc/yum.repos.d/CentOS-Base.repo
-[base]
-name=CentOS-\$releasever - Base
-baseurl=http://vault.centos.org/${repo_version}/os/\$basearch/
-gpgcheck=0
-
-[updates]
-name=CentOS-\$releasever - Updates
-baseurl=http://vault.centos.org/${repo_version}/updates/\$basearch/
-gpgcheck=0
-
-[extras]
-name=CentOS-\$releasever - Extras
-baseurl=http://vault.centos.org/${repo_version}/extras/\$basearch/
-gpgcheck=0
-
-[centosplus]
-name=CentOS-\$releasever - Plus
-baseurl=http://vault.centos.org/${repo_version}/centosplus/\$basearch/
-gpgcheck=0
-enabled=0
-EOF
-SHELL
+# Debian 11 (bullseye)
+FROM public.ecr.aws/docker/library/debian:11
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
 # variability: an identical command would be the same from `docker build`'s
@@ -59,25 +27,23 @@ SHELL
 # results.
 ARG REPRO_RUN_KEY=0
 
-# `yum` db fetching is uncontrolled and fetches whatever is today's index.
+# Configure apt retries to improve automation reliability
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
+
+# `apt-get update` is uncontrolled and fetches whatever is today's index.
 # For the sake of reproducibility subsequent steps (including in dependent
-# images) should not perform `yum` db cache updates, instead this base image
-# should be updated by changing the `REPRO_RUN_KEY`.
-RUN true "${REPRO_RUN_KEY}" && yum makecache -y
+# images) should not do `apt-get update`, instead this base image should be
+# updated by changing the `REPRO_RUN_KEY`.
+RUN true "${REPRO_RUN_KEY}" && apt-get update
 
-# localedef has been forcefully removed by:
-# rm -rf "$target"/usr/{{lib,share}/locale,{lib,lib64}/gconv,bin/localedef,sbin/build-locale-archive}
-# fun: CentOS 8 has `yum list glibc-langpack-\*` but not CentOS 7 :'(
-RUN yum reinstall -y glibc-common
+# Install locale and timezone support first
+RUN apt-get install -y locales tzdata --no-install-recommends
 
-RUN yum install -y curl gcc gcc-c++ gettext make patchutils patch libtool pkgconfig gettext file zip unzip git
+# Ensure sane locale (Uncomment `en_US.UTF-8` from `/etc/locale.gen` before running `locale-gen`)
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
 
-# fun: this has to be after `yum install curl gcc make`... but only on aarch64; go figure
-# extra fun: table is botched, localedef not happy, swallow result and test `locale` for errors
-RUN <<SHELL
-localedef -v -c -i en_US -f UTF-8 en_US.UTF-8 || true
-if locale 2>&1 | grep -e 'locale: Cannot set LC_.* to default locale: No such file or directory'; then exit 1; fi
-SHELL
+# Ensure consistent timezone
+RUN ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime
 
 # Skip installing gem documentation
 COPY <<GEMRC /usr/local/etc/gemrc
@@ -86,6 +52,7 @@ update: --no-document
 GEMRC
 
 ENV LANG="en_US.UTF-8"                                                                      \
+    LANGUAGE="en_US:en"                                                                     \
     RUBY_MAJOR="1.8"                                                                        \
     RUBY_VERSION="1.8.7-p376"                                                               \
     RUBY_DOWNLOAD_SHA256="8dfe254590e77b82ceaffba29ad38d1cee7c4180ab50340fecdb76a6fa59330b"
@@ -96,8 +63,58 @@ ENV LANG="en_US.UTF-8"                                                          
 RUN <<SHELL
 set -eux
 
-yum install -y xz gcc automake bison zlib-devel libyaml-devel openssl-devel gdbm-devel readline-devel ncurses-devel libffi-devel
+apt-get install -y \
+    curl \
+    ca-certificates \
+    gcc \
+    g++ \
+    make \
+    autoconf \
+    bison \
+    patch \
+    libc6-dev \
+    build-essential \
+    git \
+    xz-utils \
+    zlib1g-dev \
+    libyaml-dev \
+    libgdbm-dev \
+    libreadline-dev \
+    libncurses5-dev \
+    libffi-dev \
+    --no-install-recommends
 
+# Ruby 1.8 needs OpenSSL 1.0.x; Debian 11's OpenSSL 1.1.x is incompatible
+OPENSSL_VERSION='1.0.2u'
+OPENSSL_SHA256='ecd0c6ffb493dd06707d38b14bb4d8c2288bb7033735606569d8f90f89669d16'
+
+curl -L -o openssl.tar.gz "https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz"
+echo "$OPENSSL_SHA256 *openssl.tar.gz" | sha256sum --check --strict
+mkdir -p /usr/src/openssl
+tar -xzf openssl.tar.gz -C /usr/src/openssl --strip-components=1
+rm openssl.tar.gz
+
+cd /usr/src/openssl
+
+./config \
+    --prefix=/usr/local/ssl \
+    --openssldir=/usr/local/ssl \
+    shared \
+    zlib
+make
+make install
+
+echo "/usr/local/ssl/lib" > /etc/ld.so.conf.d/openssl.conf
+ldconfig
+
+# point OpenSSL to the system CA certificates so SSL verification works
+rmdir /usr/local/ssl/certs
+ln -s /etc/ssl/certs /usr/local/ssl/certs
+
+cd /
+rm -r /usr/src/openssl
+
+# Ruby 1.8 is downloaded from GitHub archive (not cache.ruby-lang.org)
 curl -L -o ruby.tar.gz "https://github.com/ruby/ruby/archive/f48ae0d10c5b586db5748b0d4b645c7e9ff5d52e.tar.gz"
 echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.gz" | sha256sum --check --strict
 mkdir -p /usr/src/ruby
@@ -149,46 +166,23 @@ PATCH
 
 autoconf
 
-gnuArch="$(uname -m)-linux-gnu"
+gnuArch="$(gcc -dumpmachine)"
 ./configure \
     --build="$gnuArch" \
     --disable-install-doc \
-    --disable-shared
+    --disable-shared \
+    --with-openssl-dir=/usr/local/ssl
 # parallel make causes race conditions in old Ruby's extension build system so we don't use `-j $(nproc)`
 make
 make install
 
-# 	find /usr/local -type f -executable -not \( -name '*tkinter*' \) -exec ldd '{}' ';' \
-# 		| awk '/=>/ { print $(NF-1) }' \
-# 		| sort -u \
-# 		| grep -vE '^/usr/local/lib/' \
-# 		| xargs -r dpkg-query --search \
-# 		| cut -d: -f1 \
-# 		| sort -u \
-# 		| xargs -r apt-mark manual \
-#
-# 	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
-#
-# find /usr/local -type f -executable -not \( -name '*tkinter*' \) -exec ldd '{}' ';' \
-#       | awk '/=>/ { print $(NF-1) }' \
-#       | grep -v '=>' \
-#       | sort -u \
-#       | grep -vE '^/usr/local/lib/' \
-#       | xargs -r rpm -qf \
-#       | sort -u \
-#       | xargs -r yum ?mark-manual?
-#
-# yum autoremove -y
-# yum remove --setopt=clean_requirements_on_remove=1
-# package-cleanup --leaves && yum autoremove # yum-utils
-# sudo yum history list pdftk
-# sudo yum history undo 88
-
 cd /
 rm -r /usr/src/ruby
-if yum list installed ruby; then exit 1; fi
 
-# update gem version
+# verify ruby is not installed via apt
+if dpkg -l ruby 2>/dev/null | grep -q '^ii'; then exit 1; fi
+
+# Ruby 1.8 doesn't come with rubygems, so we need to bootstrap it
 curl -o rubygems.tar.gz "https://rubygems.org/rubygems/rubygems-1.6.2.tgz"
 echo "cb5261818b931b5ea2cb54bc1d583c47823543fcf9682f0d6298849091c1cea7 *rubygems.tar.gz" | sha256sum --check --strict
 mkdir -p /usr/src/rubygems
@@ -200,6 +194,7 @@ ruby setup.rb
 cd /
 rm -r /usr/src/rubygems
 
+# update gem version
 gem update --system 2.7.11
 gem install bundler --version 1.17.3 --force
 
@@ -238,6 +233,9 @@ cd /
 ruby --version
 gem --version
 bundle --version
+
+# clean up apt lists
+rm -rf /var/lib/apt/lists/*
 
 SHELL
 

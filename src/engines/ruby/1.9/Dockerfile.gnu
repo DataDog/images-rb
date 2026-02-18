@@ -1,3 +1,4 @@
+# platforms: linux/x86_64
 # strip-tags: gnu
 # append-tags: gcc
 
@@ -52,9 +53,9 @@ GEMRC
 
 ENV LANG="en_US.UTF-8"                                                                      \
     LANGUAGE="en_US:en"                                                                     \
-    RUBY_MAJOR="2.2"                                                                        \
-    RUBY_VERSION="2.2.10"                                                                   \
-    RUBY_DOWNLOAD_SHA256="bf77bcb7e6666ccae8d0882ea12b05f382f963f0a9a5285a328760c06a9ab650"
+    RUBY_MAJOR="1.9"                                                                        \
+    RUBY_VERSION="1.9.3-p551"                                                               \
+    RUBY_DOWNLOAD_SHA256="44228297861f4dfdf23a47372a3e3c4c5116fbf5b0e10883417f2379874b55c6"
 
 # - Compile Ruby with `--disable-shared`
 # - Update gem version
@@ -83,7 +84,7 @@ apt-get install -y \
     libffi-dev \
     --no-install-recommends
 
-# Ruby 2.2 needs OpenSSL 1.0.x; Debian 11 ships 1.1.x which is incompatible
+# Ruby 1.9 needs OpenSSL 1.0.x; Debian 11's OpenSSL 1.1.x is incompatible
 OPENSSL_VERSION='1.0.2u'
 OPENSSL_SHA256='ecd0c6ffb493dd06707d38b14bb4d8c2288bb7033735606569d8f90f89669d16'
 
@@ -106,7 +107,7 @@ make install
 echo "/usr/local/ssl/lib" > /etc/ld.so.conf.d/openssl.conf
 ldconfig
 
-# point OpenSSL to system CA certificates so SSL verification works
+# point OpenSSL to the system CA certificates so SSL verification works
 rmdir /usr/local/ssl/certs
 ln -s /etc/ssl/certs /usr/local/ssl/certs
 
@@ -138,7 +139,8 @@ gnuArch="$(gcc -dumpmachine)"
     --disable-install-doc \
     --disable-shared \
     --with-openssl-dir=/usr/local/ssl
-make -j "$(nproc)"
+# parallel make causes race conditions in old Ruby's extension build system so we don't use `-j $(nproc)`
+make
 make install
 
 cd /
