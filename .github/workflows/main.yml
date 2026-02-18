@@ -14,7 +14,7 @@ jobs:
 
   build-ruby:
     name: Build Ruby
-    uses: ./.github/workflows/build-ruby.yml
+    uses: ./.github/workflows/build-ruby-pipeline.yml
     permissions:
       packages: write
 

@@ -14,6 +14,14 @@ on:
         required: false
         type: boolean
         default: false
+      dockerfile_suffix:
+        required: false
+        type: string
+        default: ""
+      tag_suffix:
+        required: false
+        type: string
+        default: ""
 
 jobs:
   build:
@@ -256,4 +264,6 @@ jobs:
       libc: ${{ matrix.libc }}
       arch: ${{ toJSON(matrix.arch) }}
       push: ${{ inputs.push || false }}
+      dockerfile_suffix: ${{ inputs.dockerfile_suffix || '' }}
+      tag_suffix: ${{ inputs.tag_suffix || '' }}
     secrets: inherit

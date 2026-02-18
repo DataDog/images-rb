@@ -19,6 +19,17 @@ on:
         required: false
         type: boolean
         default: false
+      # For building variant Dockerfiles (e.g. .gcc, .clang)
+      # Dockerfile used: Dockerfile.{libc}{dockerfile_suffix}
+      # Tag produced:    {version}-{libc}{tag_suffix}-g{sha}
+      dockerfile_suffix:
+        required: false
+        type: string
+        default: ""
+      tag_suffix:
+        required: false
+        type: string
+        default: ""
 
 env:
   REGISTRY: ghcr.io
@@ -33,7 +44,7 @@ jobs:
     runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     permissions:
       packages: write
-    name: Build (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.libc }}, ${{ matrix.arch }})
+    name: Build (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}, ${{ matrix.arch }})
     steps:
       - name: Set up Docker
         uses: crazy-max/ghaction-setup-docker@3fb92d6d9c634363128c8cce4bc3b2826526370a
@@ -57,9 +68,9 @@ jobs:
         run: |
           echo "SRC=src/engines/${{ inputs.engine }}/${{ inputs.version }}" >> $GITHUB_OUTPUT
           echo "IMAGE=${{ env.REGISTRY }}/${{ env.REPO }}/engines/${{ inputs.engine }}" >> $GITHUB_OUTPUT
-          echo "RELEASE_TAG=${{ inputs.version }}-${{ inputs.libc }}" >> $GITHUB_OUTPUT
-          echo "COMMIT_TAG=${{ inputs.version }}-${{ inputs.libc }}-g${{ github.sha }}" >> $GITHUB_OUTPUT
-          echo "DOCKERFILE=src/engines/${{ inputs.engine }}/${{ inputs.version }}/Dockerfile.${{ inputs.libc }}" >> $GITHUB_OUTPUT
+          echo "RELEASE_TAG=${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}" >> $GITHUB_OUTPUT
+          echo "COMMIT_TAG=${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}-g${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "DOCKERFILE=src/engines/${{ inputs.engine }}/${{ inputs.version }}/Dockerfile.${{ inputs.libc }}${{ inputs.dockerfile_suffix }}" >> $GITHUB_OUTPUT
           echo "REPRO_RUN_KEY=$(cat .repro_run_key)" >> $GITHUB_OUTPUT
           echo "SOURCE_DATE_EPOCH=315532800" >> $GITHUB_OUTPUT # 1980-01-01 00:00:00 UTC
 
@@ -119,7 +130,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       packages: write
-    name: Join (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.libc }}) [${{ join(fromJSON(inputs.arch), ', ') }}]
+    name: Join (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}) [${{ join(fromJSON(inputs.arch), ', ') }}]
     steps:
       - name: Set up Docker
         uses: crazy-max/ghaction-setup-docker@3fb92d6d9c634363128c8cce4bc3b2826526370a
@@ -130,8 +141,8 @@ jobs:
         id: vars
         run: |
           echo "IMAGE=${{ env.REGISTRY }}/${{ env.REPO }}/engines/${{ inputs.engine }}" >> $GITHUB_OUTPUT
-          echo "RELEASE_TAG=${{ inputs.version }}-${{ inputs.libc }}" >> $GITHUB_OUTPUT
-          echo "COMMIT_TAG=${{ inputs.version }}-${{ inputs.libc }}-g${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "RELEASE_TAG=${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}" >> $GITHUB_OUTPUT
+          echo "COMMIT_TAG=${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}-g${{ github.sha }}" >> $GITHUB_OUTPUT
 
       - name: Log in to the Container Registry
         run: |
@@ -158,9 +169,9 @@ jobs:
             -t ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }} \
             ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.COMMIT_TAG }}
 
-      # For gnu, also push the unqualified version tag (e.g. "3.3" without "-gnu")
+      # For gnu base images, also push the unqualified version tag (e.g. "3.3" without "-gnu")
       - name: Create and push multiarch manifest (unqualified release tag)
-        if: ${{ inputs.push && inputs.libc == 'gnu' }}
+        if: ${{ inputs.push && inputs.libc == 'gnu' && inputs.tag_suffix == '' }}
         run: |
           docker buildx imagetools create \
             -t ${{ steps.vars.outputs.IMAGE }}:${{ inputs.version }} \
