@@ -81,8 +81,37 @@ apt-get install -y \
     libreadline-dev \
     libncurses5-dev \
     libffi-dev \
-    libssl-dev \
     --no-install-recommends
+
+# Ruby 2.3 needs OpenSSL 1.0.x; Debian 11 ships OpenSSL 1.1.x which is incompatible
+OPENSSL_VERSION='1.0.2u'
+OPENSSL_SHA256='ecd0c6ffb493dd06707d38b14bb4d8c2288bb7033735606569d8f90f89669d16'
+
+curl -L -o openssl.tar.gz "https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz"
+echo "$OPENSSL_SHA256 *openssl.tar.gz" | sha256sum --check --strict
+mkdir -p /usr/src/openssl
+tar -xzf openssl.tar.gz -C /usr/src/openssl --strip-components=1
+rm openssl.tar.gz
+
+cd /usr/src/openssl
+
+./config \
+    --prefix=/usr/local/ssl \
+    --openssldir=/usr/local/ssl \
+    shared \
+    zlib
+make
+make install
+
+echo "/usr/local/ssl/lib" > /etc/ld.so.conf.d/openssl.conf
+ldconfig
+
+# point OpenSSL to system CA certificates so SSL verification works
+rmdir /usr/local/ssl/certs
+ln -s /etc/ssl/certs /usr/local/ssl/certs
+
+cd /
+rm -r /usr/src/openssl
 
 curl -o ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz"
 echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.xz" | sha256sum --check --strict
@@ -107,7 +136,8 @@ gnuArch="$(gcc -dumpmachine)"
 ./configure \
     --build="$gnuArch" \
     --disable-install-doc \
-    --disable-shared
+    --disable-shared \
+    --with-openssl-dir=/usr/local/ssl
 make -j "$(nproc)"
 make install
 
