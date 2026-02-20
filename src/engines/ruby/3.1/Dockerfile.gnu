@@ -1,6 +1,3 @@
-# strip-tags: gnu
-# append-tags: gcc
-
 # Debian 12 (bookworm)
 FROM public.ecr.aws/docker/library/debian:12
 
@@ -62,6 +59,7 @@ ENV LANG="en_US.UTF-8"                                                          
 RUN <<SHELL
 set -eux
 
+# --- Install compiler and build dependencies ---
 apt-get install -y \
     curl \
     ca-certificates \
@@ -88,6 +86,8 @@ apt-get install -y \
     libssl-dev \
     libsqlite3-dev \
     --no-install-recommends
+
+# --- Build Ruby ---
 
 curl -o ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz"
 echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.xz" | sha256sum --check --strict
@@ -131,8 +131,16 @@ ruby --version
 gem --version
 bundle --version
 
-# clean up apt lists
+# --- Clean up compiler and build dependencies ---
+# Note: --auto-remove is deliberately NOT used because runtime libraries
+# (libyaml, libffi, libssl, etc.) were auto-installed as dependencies of
+# -dev packages and apt has no way to know that Ruby needs them at runtime.
+apt-get purge -y \
+    gcc g++ cpp make autoconf bison patch build-essential xz-utils \
+    libc6-dev zlib1g-dev libyaml-dev libgdbm-dev libreadline-dev \
+    libncurses5-dev libncurses-dev libffi-dev libssl-dev
 rm -rf /var/lib/apt/lists/*
+
 
 SHELL
 

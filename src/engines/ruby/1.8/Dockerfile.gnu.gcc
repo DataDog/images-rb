@@ -1,0 +1,10 @@
+FROM ghcr.io/datadog/images-rb/engines/ruby:1.8-gnu
+
+RUN apt-get install -y \
+    binutils \
+    file \
+    make \
+    libc6-dev \
+    gcc \
+    g++ \
+    --no-install-recommends
