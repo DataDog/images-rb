@@ -187,9 +187,9 @@ jobs:
           if [ "${{ inputs.version }}" = "1.8" ]; then
             docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -rsyck -e 'puts YAML'
           else
-            docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -rpsych -e 'puts Psych.dump({smoke: "test"})'
+            docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -rpsych -e 'puts Psych.dump({ :smoke => "test"})'
           fi
-          docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -ryaml -e 'puts YAML.dump({smoke: "test"})'
+          docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -ryaml -e 'puts YAML.dump({ :smoke => "test"})'
           docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -ropenssl -e 'puts OpenSSL::OPENSSL_VERSION'
           docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -rreadline -e 'puts Readline::VERSION'
           # fiddle became available in Ruby 2.0
