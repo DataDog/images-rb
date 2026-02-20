@@ -109,6 +109,14 @@ set -eux
 # BEFORE the checkpoint so they survive the rollback.
 yum install -y zlib libyaml gdbm readline ncurses-libs libffi openssl-libs
 
+# Ensure locale support is fully available: on aarch64, the base image may
+# ship an older glibc than what the altarch repo provides.  Installing gcc
+# would pull in glibc-devel which requires the matching glibc version,
+# triggering an update to glibc + glibc-common whose gconv modules make
+# localedef work.  By updating here (before the checkpoint) we ensure the
+# rollback does not revert glibc-common to the broken base-image version.
+yum update -y glibc glibc-common
+
 # Record checkpoint: everything after this transaction will be rolled back.
 yum_checkpoint=$(yum history list all 2>/dev/null | awk '$1 ~ /^[0-9]+$/ {print $1; exit}')
 
