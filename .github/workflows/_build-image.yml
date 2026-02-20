@@ -204,8 +204,10 @@ jobs:
             jruby:*|ruby:3.[1-9]*|ruby:[4-9]*) : ;;
             *) docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -rgdbm -e 'puts GDBM::VERSION' ;;
           esac
+          # io/console not available in Ruby 1.8
           # TODO: investigate io/console failure on jruby 9.2/9.3 aarch64 (gnu + musl)
           case "${{ inputs.engine }}:${{ inputs.version }}:${{ matrix.arch }}" in
+            *:1.8:*) : ;;
             jruby:9.2:aarch64|jruby:9.3:aarch64) : ;;
             *) docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -e 'require "io/console"; puts IO.console.class' ;;
           esac
