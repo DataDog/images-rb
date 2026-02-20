@@ -1,6 +1,3 @@
-# strip-tags: gnu
-# append-tags: gcc
-
 # Debian 11 (bullseye)
 FROM public.ecr.aws/docker/library/debian:11
 
@@ -62,6 +59,7 @@ ENV LANG="en_US.UTF-8"                                                          
 RUN <<SHELL
 set -eux
 
+# --- Install compiler and build dependencies ---
 apt-get install -y \
     curl \
     ca-certificates \
@@ -82,6 +80,8 @@ apt-get install -y \
     libncurses5-dev \
     libffi-dev \
     --no-install-recommends
+
+# --- Build Ruby ---
 
 # Ruby 2.2 needs OpenSSL 1.0.x; Debian 11 ships 1.1.x which is incompatible
 OPENSSL_VERSION='1.0.2u'
@@ -156,8 +156,16 @@ ruby --version
 gem --version
 bundle --version
 
-# clean up apt lists
+# --- Clean up compiler and build dependencies ---
+# Note: --auto-remove is deliberately NOT used because runtime libraries
+# (libyaml, libffi, libssl, etc.) were auto-installed as dependencies of
+# -dev packages and apt has no way to know that Ruby needs them at runtime.
+apt-get purge -y \
+    gcc g++ cpp make autoconf bison patch build-essential xz-utils \
+    libc6-dev zlib1g-dev libyaml-dev libgdbm-dev libreadline-dev \
+    libncurses5-dev libncurses-dev libffi-dev libssl-dev
 rm -rf /var/lib/apt/lists/*
+
 
 SHELL
 

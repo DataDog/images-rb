@@ -1,6 +1,3 @@
-# strip-tags: gnu
-# append-tags: gcc
-
 # Debian 13 (trixie)
 FROM public.ecr.aws/docker/library/debian:13
 
@@ -62,6 +59,7 @@ ENV LANG="en_US.UTF-8"                                                          
 RUN <<SHELL
 set -eux
 
+# --- Install compiler and build dependencies ---
 apt-get install -y \
     curl \
     ca-certificates \
@@ -83,6 +81,8 @@ apt-get install -y \
     libffi-dev \
     libssl-dev \
     --no-install-recommends
+
+# --- Build Ruby ---
 
 rustArch=
 rustupUrl=
@@ -160,8 +160,16 @@ ruby --version
 gem --version
 bundle --version
 
-# clean up apt lists
+# --- Clean up compiler and build dependencies ---
+# Note: --auto-remove is deliberately NOT used because runtime libraries
+# (libyaml, libffi, libssl, etc.) were auto-installed as dependencies of
+# -dev packages and apt has no way to know that Ruby needs them at runtime.
+apt-get purge -y \
+    gcc g++ cpp make autoconf bison patch build-essential xz-utils \
+    libc6-dev zlib1g-dev libyaml-dev libgdbm-dev libreadline-dev \
+    libncurses5-dev libncurses-dev libffi-dev libssl-dev
 rm -rf /var/lib/apt/lists/*
+
 
 SHELL
 
