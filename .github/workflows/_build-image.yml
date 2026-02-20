@@ -192,9 +192,10 @@ jobs:
           docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -ryaml -e 'puts YAML.dump({ :smoke => "test"})'
           docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -ropenssl -e 'puts OpenSSL::OPENSSL_VERSION'
           docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -rreadline -e 'puts Readline::VERSION'
-          # fiddle became available in Ruby 2.0
-          case "${{ inputs.version }}" in
-            1.8|1.9) : ;;
+          # fiddle became available in Ruby 2.0; jruby 9.2 lacks FFI on aarch64
+          case "${{ inputs.engine }}:${{ inputs.version }}:${{ matrix.arch }}" in
+            *:1.8:*|*:1.9:*) : ;;
+            jruby:9.2:aarch64) : ;;
             *) docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -rfiddle -e 'puts Fiddle::SIZEOF_VOIDP' ;;
           esac
           docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -rzlib -e 'puts Zlib.zlib_version'
