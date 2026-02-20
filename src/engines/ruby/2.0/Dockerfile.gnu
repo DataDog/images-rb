@@ -167,7 +167,6 @@ apt-get purge -y \
     gcc g++ cpp make autoconf bison patch build-essential xz-utils \
     libc6-dev zlib1g-dev libyaml-dev libgdbm-dev libreadline-dev \
     libncurses5-dev libncurses-dev libffi-dev libssl-dev
-rm -rf /var/lib/apt/lists/*
 
 
 SHELL
