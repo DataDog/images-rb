@@ -1,4 +1,5 @@
-FROM ruby:2.6.10-alpine
+# Alpine 3.23
+FROM public.ecr.aws/docker/library/alpine:3.23
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
 # variability: an identical command would be the same from `docker build`'s
@@ -28,11 +29,142 @@ ARG REPRO_RUN_KEY=0
 # updated by changing the `REPRO_RUN_KEY`.
 RUN true "${REPRO_RUN_KEY}" && apk update
 
-ENV LANG en_US.UTF-8
+# Skip installing gem documentation
+COPY <<GEMRC /usr/local/etc/gemrc
+install: --no-document
+update: --no-document
+GEMRC
 
-## Install a pinned RubyGems and Bundler
-RUN gem update --system 3.4.22
+ENV LANG="en_US.UTF-8"                                                                      \
+    RUBY_MAJOR="2.6"                                                                      \
+    RUBY_VERSION="2.6.10"                                                                 \
+    RUBY_DOWNLOAD_SHA256="5fd8ded51321b88fdc9c1b4b0eb1b951d2eddbc293865da0151612c2e814c1f2"
+
+# - Compile Ruby with `--disable-shared`
+# - Update gem version
+
+RUN <<SHELL
+set -eux
+
+# --- Install compiler and build dependencies ---
+# Install packages to keep in the final image
+apk add \
+    curl \
+    ca-certificates \
+    git
+# Install build-only dependencies as a virtual package for easy cleanup
+apk add --virtual .ruby-builddeps \
+    build-base \
+    autoconf \
+    bison \
+    patch \
+    xz \
+    linux-headers \
+    zlib-dev \
+    yaml-dev \
+    gdbm-dev \
+    readline-dev \
+    ncurses-dev \
+    libffi-dev \
+    perl
+
+# Ruby 2.6 needs OpenSSL 1.1.1w; Alpine 3.23's OpenSSL 3.x is incompatible
+OPENSSL_VERSION='1.1.1w'
+OPENSSL_SHA256='cf3098950cb4d853ad95c0841f1f9c6d3dc102dccfcacd521d93925208b76ac8'
+
+curl -L -o openssl.tar.gz "https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz"
+echo "$OPENSSL_SHA256 *openssl.tar.gz" | sha256sum -c -
+mkdir -p /usr/src/openssl
+tar -xzf openssl.tar.gz -C /usr/src/openssl --strip-components=1
+rm openssl.tar.gz
+
+cd /usr/src/openssl
+
+./config \
+    --prefix=/usr/local/ssl \
+    --openssldir=/usr/local/ssl \
+    shared \
+    zlib
+make -j "$(nproc)"
+make install
+
+echo "/usr/local/ssl/lib" >> /etc/ld-musl-$(uname -m).path
+
+# point OpenSSL to the system CA certificates so SSL verification works
+rm -rf /usr/local/ssl/certs
+ln -s /etc/ssl/certs /usr/local/ssl/certs
+
+cd /
+rm -r /usr/src/openssl
+
+# --- Build Ruby ---
+
+curl -o ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz"
+echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.xz" | sha256sum -c -
+mkdir -p /usr/src/ruby
+tar -xJf ruby.tar.xz -C /usr/src/ruby --strip-components=1
+rm ruby.tar.xz
+
+cd /usr/src/ruby
+
+# hack in "ENABLE_PATH_CHECK" disabling to suppress:
+#   warning: Insecure world writable dir
+{
+    echo '#define ENABLE_PATH_CHECK 0'
+    echo
+    cat file.c
+} > file.c.new
+mv file.c.new file.c
+
+autoconf
+
+gnuArch="$(gcc -dumpmachine)"
+./configure \
+    --build="$gnuArch" \
+    --disable-install-doc \
+    --disable-shared \
+    --with-openssl-dir=/usr/local/ssl
+make -j "$(nproc)"
+make install
+
+cd /
+rm -r /usr/src/ruby
+
+# verify ruby is not installed via apk
+if apk info -e ruby 2>/dev/null; then exit 1; fi
+
+# update gem version
+gem update --system 3.4.22
+
+# rough smoke test
+ruby --version
+gem --version
+bundle --version
+
+# --- Clean up compiler and build dependencies ---
+# Find and preserve packages providing shared libraries needed at runtime
+runDeps="$( \
+    find /usr/local -type f \( -executable -o -name '*.so*' \) -exec scanelf --needed --nobanner --format '%n#p' '{}' ';' \
+        | tr ',' '\n' \
+        | sort -u \
+        | awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
+)"
+apk add --virtual .ruby-rundeps $runDeps
+apk del --no-network .ruby-builddeps
+
+SHELL
 
 # Install additional gems that are in CRuby but missing from the above
 # JRuby install distribution. These are version-pinned for reproducibility.
 RUN gem install rake:13.2.1
+
+# don't create ".bundle" in all our apps
+ENV GEM_HOME /usr/local/bundle
+ENV BUNDLE_SILENCE_ROOT_WARNING=1 \
+    BUNDLE_APP_CONFIG="$GEM_HOME"
+ENV PATH $GEM_HOME/bin:$PATH
+
+# adjust permissions of a few directories for running "gem install" as an arbitrary user
+RUN mkdir -p "$GEM_HOME" && chmod 1777 "$GEM_HOME"
+
+CMD [ "irb" ]
