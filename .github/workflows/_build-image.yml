@@ -181,7 +181,7 @@ jobs:
             -v "${PWD}":"${PWD}" -w "${PWD}" \
             -e BUNDLE_GEMFILE=gemfiles/${{ inputs.engine }}-${{ inputs.version }}.gemfile \
             ${{ steps.vars.outputs.IMAGE }}:test \
-            /bin/sh -c 'bundle install --with="test" --without="check ide" && bundle exec rake test'
+            /bin/sh -c 'bundle config set without "check ide" && bundle config set with "test" && bundle install && bundle exec rake test'
           # Smoke-test C extensions to prove their shared library deps are present
           # Ruby 1.8 uses syck; 1.9+ uses psych
           if [ "${{ inputs.version }}" = "1.8" ]; then
