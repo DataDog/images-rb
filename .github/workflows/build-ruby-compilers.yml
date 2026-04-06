@@ -35,6 +35,75 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # gnu
+          - engine: ruby
+            version: "1.8"
+            libc: gnu
+            arch: ["x86_64"]
+          - engine: ruby
+            version: "1.9"
+            libc: gnu
+            arch: ["x86_64"]
+          - engine: ruby
+            version: "2.0"
+            libc: gnu
+            arch: ["x86_64"]
+          - engine: ruby
+            version: "2.1"
+            libc: gnu
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.2"
+            libc: gnu
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.3"
+            libc: gnu
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.4"
+            libc: gnu
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.5"
+            libc: gnu
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.6"
+            libc: gnu
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.7"
+            libc: gnu
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.0"
+            libc: gnu
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.1"
+            libc: gnu
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.2"
+            libc: gnu
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.3"
+            libc: gnu
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.4"
+            libc: gnu
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.5"
+            libc: gnu
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "4.0"
+            libc: gnu
+            arch: ["x86_64", "aarch64"]
           # musl
           - engine: ruby
             version: "2.1"
@@ -107,6 +176,75 @@ jobs:
           - engine: jruby
             version: "10.0"
             libc: musl
+            arch: ["x86_64", "aarch64"]
+          # centos
+          - engine: ruby
+            version: "1.8"
+            libc: centos
+            arch: ["x86_64"]
+          - engine: ruby
+            version: "1.9"
+            libc: centos
+            arch: ["x86_64"]
+          - engine: ruby
+            version: "2.0"
+            libc: centos
+            arch: ["x86_64"]
+          - engine: ruby
+            version: "2.1"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.2"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.3"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.4"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.5"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.6"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.7"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.0"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.1"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.2"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.3"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.4"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "3.5"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "4.0"
+            libc: centos
             arch: ["x86_64", "aarch64"]
     name: ${{ matrix.engine }}:${{ matrix.version }}-${{ matrix.libc }}${{ inputs.tag_suffix }}
     uses: ./.github/workflows/_build-image.yml

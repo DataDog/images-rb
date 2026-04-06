@@ -1,0 +1,9 @@
+FROM ghcr.io/datadog/images-rb/engines/ruby:2.5-gnu
+
+RUN apt-get install -y \
+    binutils \
+    file \
+    make \
+    libc6-dev \
+    clang \
+    --no-install-recommends
