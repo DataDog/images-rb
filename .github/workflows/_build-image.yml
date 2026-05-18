@@ -182,6 +182,35 @@ jobs:
             -e BUNDLE_GEMFILE=gemfiles/${{ inputs.engine }}-${{ inputs.version }}.gemfile \
             ${{ steps.vars.outputs.IMAGE }}:test \
             /bin/sh -c 'bundle config set without "check ide" && bundle config set with "test" && bundle install && bundle exec rake test'
+          # Smoke-test C extensions to prove their shared library deps are present
+          # Ruby 1.8 uses syck; 1.9+ uses psych
+          if [ "${{ inputs.version }}" = "1.8" ]; then
+            docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -rsyck -e 'puts YAML'
+          else
+            docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -rpsych -e 'puts Psych.dump({ :smoke => "test"})'
+          fi
+          docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -ryaml -e 'puts YAML.dump({ :smoke => "test"})'
+          docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -ropenssl -e 'puts OpenSSL::OPENSSL_VERSION'
+          docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -rreadline -e 'puts Readline::VERSION'
+          # fiddle became available in Ruby 2.0; jruby 9.2 lacks FFI on aarch64
+          case "${{ inputs.engine }}:${{ inputs.version }}:${{ matrix.arch }}" in
+            *:1.8:*|*:1.9:*) : ;;
+            jruby:9.2:aarch64) : ;;
+            *) docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -rfiddle -e 'puts Fiddle::SIZEOF_VOIDP' ;;
+          esac
+          docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -rzlib -e 'puts Zlib.zlib_version'
+          # gdbm was removed from Ruby's bundled gems in 3.1; not available in JRuby (C extension)
+          case "${{ inputs.engine }}:${{ inputs.version }}" in
+            jruby:*|ruby:3.[1-9]*|ruby:[4-9]*) : ;;
+            *) docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -rgdbm -e 'puts GDBM::VERSION' ;;
+          esac
+          # io/console not available in Ruby 1.8
+          # TODO: investigate io/console failure on jruby 9.2/9.3 aarch64 (gnu + musl)
+          case "${{ inputs.engine }}:${{ inputs.version }}:${{ matrix.arch }}" in
+            *:1.8:*) : ;;
+            jruby:9.2:aarch64|jruby:9.3:aarch64) : ;;
+            *) docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -e 'require "io/console"; puts IO.console.class' ;;
+          esac
 
   join:
     needs: build

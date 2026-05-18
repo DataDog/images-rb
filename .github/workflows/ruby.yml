@@ -23,10 +23,10 @@ jobs:
       push: ${{ inputs.push || false }}
     secrets: inherit
 
-  # Stage 2: Build musl compiler images (musl.gcc, musl.clang)
+  # Stage 2: Build compiler images (gnu.gcc, gnu.clang, musl.gcc, musl.clang, centos.gcc, centos.clang)
   #
-  # These depend on the base musl images existing in the registry.
-  # The compiler Dockerfiles FROM the release tag (e.g. FROM ...ruby:3.3-musl)
+  # These depend on the base images existing in the registry.
+  # The compiler Dockerfiles FROM the release tag (e.g. FROM ...ruby:3.3-gnu)
   # but _build-image.yml uses --build-context to override it with the
   # commit-tagged base image from this pipeline run, so correctness does not
   # depend on the release tag being pushed.
