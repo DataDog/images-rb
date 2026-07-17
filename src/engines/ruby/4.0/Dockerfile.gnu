@@ -72,6 +72,7 @@ apt-get install -y \
     bison \
     patch \
     libc6-dev \
+    pkg-config \
     build-essential \
     git \
     xz-utils \
