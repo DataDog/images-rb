@@ -50,7 +50,7 @@ jobs:
     name: Build (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}, ${{ matrix.arch }})
     steps:
       - name: Set up Docker
-        uses: crazy-max/ghaction-setup-docker@3fb92d6d9c634363128c8cce4bc3b2826526370a
+        uses: crazy-max/ghaction-setup-docker@6d7cfa65f60a9dda7b46e5513fa982536f3c9877 # v5.3.0
         with:
           version: v28.5.1
           daemon-config: |
@@ -61,7 +61,7 @@ jobs:
             }
 
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
           fetch-depth: 20
@@ -191,7 +191,7 @@ jobs:
     name: Join (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}) [${{ join(fromJSON(inputs.arch), ', ') }}]
     steps:
       - name: Set up Docker
-        uses: crazy-max/ghaction-setup-docker@3fb92d6d9c634363128c8cce4bc3b2826526370a
+        uses: crazy-max/ghaction-setup-docker@6d7cfa65f60a9dda7b46e5513fa982536f3c9877 # v5.3.0
         with:
           version: v28.5.1
 
