@@ -153,7 +153,7 @@ rm -r /usr/src/ruby
 if dpkg -l ruby 2>/dev/null | grep -q '^ii'; then exit 1; fi
 
 # update gem version
-gem update --system 4.0.6
+gem update --system 4.0.16
 
 # rough smoke test
 ruby --version
