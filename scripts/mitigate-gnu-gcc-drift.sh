@@ -24,27 +24,33 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 # Versions touched by PR #91.
 VERSIONS=(3.2 3.3 3.4 3.5 4.0)
 
-TARGETS=()
+# Build the comma-separated rake glob, e.g. "engines/ruby:3.2-gnu-gcc,engines/ruby:4.0-gnu-gcc"
+TARGETS=""
 for version in "${VERSIONS[@]}"; do
-    TARGETS+=("engines/ruby:${version}-gnu-gcc")
+    TARGETS+="engines/ruby:${version}-gnu-gcc,"
 done
+TARGETS="${TARGETS%,}" # drop trailing comma
 
-echo "Syncing local images..."
-rake "docker:pull[$(IFS=,; echo "${TARGETS[*]}")]"
+echo "Affected tags: ${TARGETS}"
+echo
+
+echo "==> Pulling current images so rake has a baseline to compare against"
+rake "docker:pull[${TARGETS}]"
 
 echo
-echo "Building (no push) to verify..."
-FORCE=true rake "docker:build[$(IFS=,; echo "${TARGETS[*]}")]"
+echo "==> Rebuilding locally (no push yet) to confirm the fix works"
+FORCE=true rake "docker:build[${TARGETS}]"
 
 echo
-read -r -p "Build succeeded. Push ${TARGETS[*]} to the registry now? [y/N] " CONFIRM
+read -r -p "Build looks good. Push these tags to the registry now? [y/N] " CONFIRM
 if [[ "${CONFIRM}" != "y" && "${CONFIRM}" != "Y" ]]; then
-    echo "Skipping push."
+    echo "Skipping push. Nothing was published."
     exit 0
 fi
 
-echo "Building and pushing..."
-FORCE=true PUSH=true rake "docker:build[$(IFS=,; echo "${TARGETS[*]}")]"
+echo
+echo "==> Rebuilding and pushing to the registry"
+FORCE=true PUSH=true rake "docker:build[${TARGETS}]"
 
 echo
-echo "Done mitigating gnu-gcc drift for: ${VERSIONS[*]}"
+echo "Done. Refreshed: ${TARGETS}"
