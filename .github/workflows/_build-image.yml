@@ -39,6 +39,48 @@ env:
   REPO: datadog/images-rb
 
 jobs:
+  alias:
+    runs-on: ubuntu-24.04
+    outputs:
+      tags: ${{ steps.aliases.outputs.tags }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          persist-credentials: false
+
+      - name: Derive alias tags
+        id: aliases
+        env:
+          DOCKERFILE: src/engines/${{ inputs.engine }}/${{ inputs.version }}/Dockerfile.${{ inputs.libc }}${{ inputs.dockerfile_suffix }}
+          RELEASE_TAG: ${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}
+        run: |
+          strip_tags=()
+          append_tags=()
+
+          while IFS= read -r line; do
+            if [[ "$line" =~ ^[[:space:]]*#[[:space:]]*strip-tags:\ (.*)$ ]]; then
+              strip_tags+=("${BASH_REMATCH[1]}")
+            elif [[ "$line" =~ ^[[:space:]]*#[[:space:]]*append-tags:\ (.*)$ ]]; then
+              append_tags+=("${BASH_REMATCH[1]}")
+            fi
+          done < "$DOCKERFILE"
+
+          alias_tags=()
+          if ((${#strip_tags[@]})); then
+            stripped_tag="$RELEASE_TAG"
+            for tag in "${strip_tags[@]}"; do
+              stripped_tag="${stripped_tag//-"$tag"/}"
+            done
+            alias_tags+=("$stripped_tag")
+          fi
+
+          for tag in "${append_tags[@]}"; do
+            alias_tags+=("${RELEASE_TAG}-${tag}")
+          done
+
+          echo "tags=$(jq -cn '$ARGS.positional' --args "${alias_tags[@]}")" >> "$GITHUB_OUTPUT"
+
   build:
     strategy:
       fail-fast: false
@@ -184,7 +226,7 @@ jobs:
             /bin/sh -c 'bundle config set without "check ide" && bundle config set with "test" && bundle install && bundle exec rake test'
 
   join:
-    needs: build
+    needs: [alias, build]
     runs-on: ubuntu-24.04
     permissions:
       packages: write
@@ -241,10 +283,13 @@ jobs:
             -t ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }} \
             ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}
 
-      # For gnu base images, also push the unqualified version tag (e.g. "3.3" without "-gnu")
-      - name: Create and push multiarch manifest (unqualified release tag)
-        if: ${{ inputs.push && inputs.libc == 'gnu' && inputs.tag_suffix == '' }}
+      - name: Create and push multiarch manifest aliases
+        if: ${{ inputs.push }}
+        env:
+          ALIAS_TAGS: ${{ needs.alias.outputs.tags }}
         run: |
-          docker buildx imagetools create \
-            -t ${{ steps.vars.outputs.IMAGE }}:${{ inputs.version }} \
-            ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}
+          while IFS= read -r tag; do
+            docker buildx imagetools create \
+              -t ${{ steps.vars.outputs.IMAGE }}:"$tag" \
+              ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}
+          done < <(jq -r '.[]' <<< "$ALIAS_TAGS")
