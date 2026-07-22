@@ -224,6 +224,15 @@ jobs:
             -e BUNDLE_GEMFILE=gemfiles/${{ inputs.engine }}-${{ inputs.version }}.gemfile \
             ${{ steps.vars.outputs.IMAGE }}:test \
             /bin/sh -c 'bundle config set without "check ide" && bundle config set with "test" && bundle install && bundle exec rake test'
+          # Ruby 2.5 is the oldest GNU image used by dd-trace-rb. Verify the
+          # development packages can compile and load each database extension.
+          if [ "${{ inputs.engine }}:${{ inputs.version }}:${{ inputs.libc }}" = ruby:2.5:gnu ]; then
+            docker run --rm ${{ steps.vars.outputs.IMAGE }}:test /bin/sh -c \
+              'gem install sqlite3 -v 1.3.13 --platform ruby --no-document &&
+               gem install mysql2 -v 0.5.7 --no-document &&
+               gem install pg -v 1.5.9 --platform ruby --no-document &&
+               ruby -rsqlite3 -rmysql2 -rpg -e "db = SQLite3::Database.new(\":memory:\"); abort unless db.get_first_value(\"SELECT 1\") == 1; abort unless Mysql2::Client.info[:version]; abort unless PG.library_version > 0"'
+          fi
 
   join:
     needs: [alias, build]
