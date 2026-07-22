@@ -5,5 +5,8 @@ RUN apt-get install -y \
     file \
     make \
     libc6-dev \
+    libsqlite3-dev \
     clang \
     --no-install-recommends
+
+RUN ln -s "$(command -v clang)" /usr/local/bin/gcc

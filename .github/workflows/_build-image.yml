@@ -269,6 +269,16 @@ jobs:
             jruby:9.2:aarch64|jruby:9.3:aarch64) : ;;
             *) docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -e 'require "io/console"; puts IO.console.class' ;;
           esac
+          # Compiler images must compile and load SQLite's native extension.
+          # Ruby 2.5 uses the last pre-1.4 release, which requires sqlite3.h.
+          if [ "${{ inputs.engine }}" = ruby ] && [ -n "${{ inputs.dockerfile_suffix }}" ]; then
+            sqlite_version=
+            if [ "${{ inputs.version }}" = "2.5" ]; then sqlite_version=1.3.13; fi
+            compiler_env=()
+            if [ "${{ inputs.dockerfile_suffix }}" = ".clang" ]; then compiler_env=(-e CC=clang); fi
+            docker run --rm "${compiler_env[@]}" ${{ steps.vars.outputs.IMAGE }}:test \
+              /bin/sh -c "gem install sqlite3 --platform ruby --no-document ${sqlite_version:+-v ${sqlite_version}} && ruby -rsqlite3 -e 'db = SQLite3::Database.new(\":memory:\"); abort unless db.get_first_value(\"SELECT 1\") == 1'"
+          fi
 
   join:
     needs: [alias, build]

@@ -84,7 +84,6 @@ apt-get install -y \
     libmariadb-dev-compat \
     libpq-dev \
     libssl-dev \
-    libsqlite3-dev \
     --no-install-recommends
 
 # --- Build Ruby ---
