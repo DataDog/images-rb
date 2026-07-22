@@ -82,6 +82,9 @@ apt-get install -y \
     libreadline-dev \
     libncurses5-dev \
     libffi-dev \
+    libsqlite3-dev \
+    libpq-dev \
+    default-libmysqlclient-dev \
     --no-install-recommends
 
 # Ruby 2.2 needs OpenSSL 1.0.x; Debian 11 ships 1.1.x which is incompatible
