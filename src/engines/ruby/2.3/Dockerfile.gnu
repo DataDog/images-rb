@@ -82,6 +82,9 @@ apt-get install -y \
     libreadline-dev \
     libncurses5-dev \
     libffi-dev \
+    libmariadb-dev \
+    libmariadb-dev-compat \
+    libpq-dev \
     --no-install-recommends
 
 # Ruby 2.3 needs OpenSSL 1.0.x; Debian 11 ships OpenSSL 1.1.x which is incompatible
