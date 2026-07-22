@@ -232,8 +232,11 @@ jobs:
       # Skipped on 3.5 (preview): pg/sqlite3 don't publish precompiled
       # binaries for an unreleased Ruby yet, so bundle install fails
       # there regardless of this image.
+      # Skipped on 1.8: no pg release, including the oldest 1.8-compatible
+      # one, builds against Ruby's encoding API (rb_encoding), which
+      # doesn't exist before Ruby 1.9.
       - name: Test native extension compilation
-        if: inputs.engine == 'ruby' && inputs.libc == 'gnu' && inputs.dockerfile_suffix == '' && inputs.version != '3.5'
+        if: inputs.engine == 'ruby' && inputs.libc == 'gnu' && inputs.dockerfile_suffix == '' && inputs.version != '3.5' && inputs.version != '1.8'
         run: |
           docker run --rm \
             -v "${PWD}":"${PWD}" -w "${PWD}" \
