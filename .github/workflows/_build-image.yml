@@ -40,6 +40,7 @@ env:
 
 jobs:
   alias:
+    name: Alias (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }})
     runs-on: ubuntu-24.04
     outputs:
       tags: ${{ steps.aliases.outputs.tags }}
