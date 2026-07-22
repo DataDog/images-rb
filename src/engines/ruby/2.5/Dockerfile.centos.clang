@@ -1,3 +1,10 @@
 FROM ghcr.io/datadog/images-rb/engines/ruby:2.5-centos
 
-RUN yum install -y epel-release && yum install -y gcc clang make binutils file patch sqlite-devel && ln -s "$(command -v clang)" /usr/local/bin/gcc
+RUN yum install -y epel-release \
+    && yum install -y gcc clang make binutils file patch sqlite-devel \
+    && printf '%s\n' \
+        '#!/bin/sh' \
+        'gcc_dir="$(dirname "$(/usr/bin/gcc -print-file-name=crtbegin.o)")"' \
+        'exec clang -B "$gcc_dir" -L "$gcc_dir" "$@"' \
+        > /usr/local/bin/gcc \
+    && chmod +x /usr/local/bin/gcc
