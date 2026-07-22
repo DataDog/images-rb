@@ -86,6 +86,7 @@ apt-get install -y \
     libmariadb-dev-compat \
     libpq-dev \
     libssl-dev \
+    libsqlite3-dev \
     --no-install-recommends
 
 curl -o ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz"

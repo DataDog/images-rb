@@ -86,6 +86,7 @@ apt-get install -y \
     libmariadb-dev \
     libmariadb-dev-compat \
     libpq-dev \
+    libsqlite3-dev \
     --no-install-recommends
 
 # Ruby 1.8 needs OpenSSL 1.0.x; Debian 11's OpenSSL 1.1.x is incompatible
