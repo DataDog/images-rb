@@ -83,6 +83,9 @@ apt-get install -y \
     libncurses5-dev \
     libffi-dev \
     libssl-dev \
+    libsqlite3-dev \
+    libpq-dev \
+    default-libmysqlclient-dev \
     --no-install-recommends
 
 rustArch=

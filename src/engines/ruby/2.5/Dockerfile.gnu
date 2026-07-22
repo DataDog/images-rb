@@ -84,6 +84,8 @@ apt-get install -y \
     libffi-dev \
     libssl-dev \
     libsqlite3-dev \
+    libpq-dev \
+    default-libmysqlclient-dev \
     --no-install-recommends
 
 curl -o ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz"
