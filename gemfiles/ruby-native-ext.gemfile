@@ -1,0 +1,7 @@
+source "https://rubygems.org"
+
+gem "rake"
+gem "minitest", "< 6.0" # avoid dependency on prism
+gem "pg"
+gem "mysql2"
+gem "sqlite3"

@@ -225,6 +225,19 @@ jobs:
             ${{ steps.vars.outputs.IMAGE }}:test \
             /bin/sh -c 'bundle config set without "check ide" && bundle config set with "test" && bundle install && bundle exec rake test'
 
+      # Only the plain gnu Dockerfile ships the dev libs (libpq-dev,
+      # default-libmysqlclient-dev, libsqlite3-dev) needed to compile
+      # pg/mysql2/sqlite3 native extensions, so this runs against a
+      # dedicated gemfile rather than the shared per-engine one.
+      - name: Test native extension compilation
+        if: inputs.engine == 'ruby' && inputs.libc == 'gnu' && inputs.dockerfile_suffix == ''
+        run: |
+          docker run --rm \
+            -v "${PWD}":"${PWD}" -w "${PWD}" \
+            -e BUNDLE_GEMFILE=gemfiles/ruby-native-ext.gemfile \
+            ${{ steps.vars.outputs.IMAGE }}:test \
+            /bin/sh -c 'bundle install && bundle exec rake test'
+
   join:
     needs: [alias, build]
     runs-on: ubuntu-24.04
