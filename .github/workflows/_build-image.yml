@@ -240,6 +240,7 @@ jobs:
                gem install pg -v 1.5.9 --platform ruby --no-document &&
                ruby -rsqlite3 -rmysql2 -rpg -e "db = SQLite3::Database.new(\":memory:\"); abort unless db.get_first_value(\"SELECT 1\") == 1; abort unless Mysql2::Client.info[:version]; abort unless PG.library_version > 0"'
               ;;
+          esac
           # Smoke-test C extensions to prove their shared library deps are present
           # Ruby 1.8 uses syck; 1.9+ uses psych
           if [ "${{ inputs.version }}" = "1.8" ]; then
