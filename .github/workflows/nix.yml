@@ -12,23 +12,15 @@ jobs:
           - os: darwin
             cpu: x86_64
             base: macos-15-intel # always x86_64-darwin
-            nix-installer:
-              platform: x86_64-darwin
           - os: darwin
             cpu: arm64
             base: macos-15 # always arm64-darwin
-            nix-installer:
-              platform: aarch64-darwin
           - os: linux
             cpu: x86_64
             base: ubuntu-24.04 # always x86_64-linux-gnu
-            nix-installer:
-              platform: x86_64-linux
           - os: linux
             cpu: aarch64
             base: arm-4core-linux-ubuntu24.04 # always aarch64-linux-gnu
-            nix-installer:
-              platform: aarch64-linux
 
     name: Test Nix (${{ matrix.platform.cpu }}-${{ matrix.platform.os }})
     runs-on: ${{ matrix.platform.base }}
@@ -44,9 +36,7 @@ jobs:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
           persist-credentials: false
-      - uses: DeterminateSystems/nix-installer-action@786fff0690178f1234e4e1fe9b536e94f5433196
-        with:
-          source-url: https://github.com/DeterminateSystems/nix-installer/releases/download/v0.30.0/nix-installer-${{ matrix.platform.nix-installer.platform }}
+      - uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342 # v31.11.0
       - name: Print Nix version
         run: |
           nix --version
