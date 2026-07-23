@@ -1,3 +1,16 @@
 FROM ghcr.io/datadog/images-rb/engines/ruby:3.5-centos
 
-RUN yum install -y epel-release && yum install -y clang make binutils file patch
+RUN yum install -y epel-release \
+    && yum install -y gcc clang make binutils file patch pkgconfig mariadb-devel postgresql-devel sqlite-devel \
+    && printf '%s\n' \
+        '#!/bin/bash' \
+        'gcc_dir="$(dirname "$(/usr/bin/gcc -print-file-name=crtbegin.o)")"' \
+        'args=()' \
+        'for arg in "$@"; do' \
+        '    if [[ "$arg" != "-fstack-protector-strong" ]]; then' \
+        '        args+=("$arg")' \
+        '    fi' \
+        'done' \
+        'exec clang -B "$gcc_dir" -L "$gcc_dir" "${args[@]}"' \
+        > /usr/local/bin/gcc \
+    && chmod +x /usr/local/bin/gcc
