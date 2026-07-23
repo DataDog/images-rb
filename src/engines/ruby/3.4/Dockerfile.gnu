@@ -80,11 +80,10 @@ apt-get install -y \
     libreadline-dev \
     libncurses5-dev \
     libffi-dev \
-    libmariadb-dev \
-    libmariadb-dev-compat \
-    libpq-dev \
+    libmariadb3 \
+    libpq5 \
     libssl-dev \
-    libsqlite3-dev \
+    libsqlite3-0 \
     --no-install-recommends
 
 # --- Build Ruby ---

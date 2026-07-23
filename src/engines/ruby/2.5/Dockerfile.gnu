@@ -80,9 +80,9 @@ apt-get install -y \
     libreadline-dev \
     libncurses5-dev \
     libffi-dev \
-    libmariadb-dev \
-    libmariadb-dev-compat \
-    libpq-dev \
+    libmariadb3 \
+    libpq5 \
+    libsqlite3-0 \
     libssl-dev \
     --no-install-recommends
 
