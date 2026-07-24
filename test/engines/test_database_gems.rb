@@ -35,7 +35,7 @@ class TestDatabaseGems < Minitest::Test
       install_gem(env, "mysql2", "0.5.7", false)
       requirements = ["-rmysql2"]
       requirements.unshift("-rbigdecimal") if needs_bigdecimal
-      run!(env, [Gem.ruby, *requirements, "-e", "abort unless Mysql2::Client.info[:version]"])
+      run!(env, [Gem.ruby] + requirements + ["-e", "abort unless Mysql2::Client.info[:version]"])
     end
   end
 
@@ -52,7 +52,7 @@ class TestDatabaseGems < Minitest::Test
       install_gem(env, "pg", pg_version, true)
       requirements = ["-rpg"]
       requirements.unshift("-rbigdecimal") if needs_bigdecimal
-      run!(env, [Gem.ruby, *requirements, "-e", "abort unless PG.library_version > 0"])
+      run!(env, [Gem.ruby] + requirements + ["-e", "abort unless PG.library_version > 0"])
     end
   end
 
