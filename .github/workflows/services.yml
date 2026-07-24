@@ -1,14 +1,12 @@
 name: Services
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       push:
-        description: Push images
-        required: true
+        required: false
         type: boolean
-        default: true
-  workflow_call:
+        default: false
 
 env:
   REGISTRY: ghcr.io
@@ -42,6 +40,7 @@ jobs:
             arch: ["x86_64", "aarch64"]
     runs-on: ubuntu-24.04
     permissions:
+      contents: read
       packages: write
     name: Build (${{ matrix.service }})
     steps:

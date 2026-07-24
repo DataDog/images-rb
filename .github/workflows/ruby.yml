@@ -1,16 +1,10 @@
 name: Ruby
 
 permissions:
+  contents: read
   packages: write
 
 on:
-  workflow_dispatch:
-    inputs:
-      push:
-        description: Push images
-        required: true
-        type: boolean
-        default: true
   workflow_call:
     inputs:
       push:

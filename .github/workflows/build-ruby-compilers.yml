@@ -1,24 +1,10 @@
 name: Build Ruby Compilers
 
 permissions:
+  contents: read
   packages: write
 
 on:
-  workflow_dispatch:
-    inputs:
-      push:
-        description: Push images
-        required: true
-        type: boolean
-        default: true
-      dockerfile_suffix:
-        description: "Dockerfile suffix (e.g. .gcc, .clang)"
-        required: true
-        type: string
-      tag_suffix:
-        description: "Tag suffix (e.g. -gcc, -clang)"
-        required: true
-        type: string
   workflow_call:
     inputs:
       push:
