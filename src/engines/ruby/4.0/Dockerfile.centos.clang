@@ -1,10 +1,10 @@
 FROM ghcr.io/datadog/images-rb/engines/ruby:4.0-centos
 
 RUN yum install -y epel-release \
-    && yum install -y gcc clang make binutils file patch pkgconfig mariadb-devel postgresql-devel sqlite-devel \
+    && yum install -y devtoolset-10-gcc clang make binutils file patch pkgconfig mariadb-devel postgresql-devel sqlite-devel \
     && printf '%s\n' \
         '#!/bin/bash' \
-        'gcc_dir="$(dirname "$(/usr/bin/gcc -print-file-name=crtbegin.o)")"' \
+        'gcc_dir="$(dirname "$(/opt/rh/devtoolset-10/root/usr/bin/gcc -print-file-name=crtbegin.o)")"' \
         'args=()' \
         'for arg in "$@"; do' \
         '    if [[ "$arg" != "-fstack-protector-strong" && "$arg" != "-mbranch-protection=pac-ret" ]]; then' \
