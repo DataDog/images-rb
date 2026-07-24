@@ -44,7 +44,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
-      - uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+      - uses: DeterminateSystems/nix-installer-action@786fff0690178f1234e4e1fe9b536e94f5433196
         with:
           source-url: https://github.com/DeterminateSystems/nix-installer/releases/download/v0.30.0/nix-installer-${{ matrix.platform.nix-installer.platform }}
       - name: Print Nix version
