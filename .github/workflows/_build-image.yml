@@ -46,7 +46,7 @@ jobs:
       tags: ${{ steps.aliases.outputs.tags }}
     steps:
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
 
@@ -93,7 +93,7 @@ jobs:
     name: Build (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}, ${{ matrix.arch }})
     steps:
       - name: Set up Docker
-        uses: crazy-max/ghaction-setup-docker@3fb92d6d9c634363128c8cce4bc3b2826526370a
+        uses: crazy-max/ghaction-setup-docker@77e84dbf09b47d1e29270283c22f16145aa85ca1 # v5.4.0
         with:
           version: v28.5.1
           daemon-config: |
@@ -104,7 +104,7 @@ jobs:
             }
 
       - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 20
@@ -266,7 +266,7 @@ jobs:
     name: Join (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}) [${{ join(fromJSON(inputs.arch), ', ') }}]
     steps:
       - name: Set up Docker
-        uses: crazy-max/ghaction-setup-docker@3fb92d6d9c634363128c8cce4bc3b2826526370a
+        uses: crazy-max/ghaction-setup-docker@77e84dbf09b47d1e29270283c22f16145aa85ca1 # v5.4.0
         with:
           version: v28.5.1
 
@@ -317,12 +317,19 @@ jobs:
             ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}
 
       - name: Create and push multiarch manifest aliases
-        if: ${{ inputs.push }}
         env:
           ALIAS_TAGS: ${{ needs.alias.outputs.tags }}
         run: |
           while IFS= read -r tag; do
             docker buildx imagetools create \
-              -t ${{ steps.vars.outputs.IMAGE }}:"$tag" \
+              -t ${{ steps.vars.outputs.IMAGE }}:"$tag-gha${{ github.run_id }}-g${{ github.sha }}" \
               ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}
+            docker buildx imagetools create \
+              -t ${{ steps.vars.outputs.IMAGE }}:"$tag-g${{ github.sha }}" \
+              ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}
+            if [ "${{ inputs.push }}" = true ]; then
+              docker buildx imagetools create \
+                -t ${{ steps.vars.outputs.IMAGE }}:"$tag" \
+                ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}
+            fi
           done < <(jq -r '.[]' <<< "$ALIAS_TAGS")
