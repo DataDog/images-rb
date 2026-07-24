@@ -270,53 +270,34 @@ jobs:
         run: |
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
 
-      # Combine the per-arch images into one multiarch manifest list.
-      # This only manipulates manifests in the registry — no image data is pulled.
-      - name: Create and push multiarch manifest (run tag)
+      # Combine the per-arch images and promote all tags in one registry call.
+      - name: Create and push multiarch manifests
+        env:
+          ALIAS_TAGS: ${{ needs.alias.outputs.tags }}
         run: |
           sources=()
           for arch in $(echo '${{ inputs.arch }}' | jq -r '.[]'); do
             sources+=("${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}-${arch}")
           done
 
-          docker buildx imagetools create \
-            -t ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }} \
-            "${sources[@]}"
+          targets=(
+            -t ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}
+            -t ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.COMMIT_TAG }}
+          )
+          if [ "${{ inputs.push }}" = true ]; then
+            targets+=(-t ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }})
+          fi
 
-      # Promote the run-tagged manifest to the commit tag.
-      # This may race if two workflow runs build the same commit concurrently,
-      # but that's acceptable since they produce identical content.
-      - name: Create and push multiarch manifest (commit tag)
-        run: |
-          docker buildx imagetools create \
-            -t ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.COMMIT_TAG }} \
-            ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}
-
-      # Promote the manifest to the release tag.
-      - name: Create and push multiarch manifest (release tag)
-        if: ${{ inputs.push }}
-        run: |
-          docker buildx imagetools create \
-            -t ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RELEASE_TAG }} \
-            ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}
-
-      - name: Create and push multiarch manifest aliases
-        env:
-          ALIAS_TAGS: ${{ needs.alias.outputs.tags }}
-        run: |
-          alias_targets=()
           while IFS= read -r tag; do
-            alias_targets+=(
+            targets+=(
               -t ${{ steps.vars.outputs.IMAGE }}:"$tag-gha${{ github.run_id }}-g${{ github.sha }}"
               -t ${{ steps.vars.outputs.IMAGE }}:"$tag-g${{ github.sha }}"
             )
             if [ "${{ inputs.push }}" = true ]; then
-              alias_targets+=(-t ${{ steps.vars.outputs.IMAGE }}:"$tag")
+              targets+=(-t ${{ steps.vars.outputs.IMAGE }}:"$tag")
             fi
           done < <(jq -r '.[]' <<< "$ALIAS_TAGS")
 
-          if ((${#alias_targets[@]})); then
-            docker buildx imagetools create \
-              "${alias_targets[@]}" \
-              ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}
-          fi
+          docker buildx imagetools create \
+            "${targets[@]}" \
+            "${sources[@]}"
