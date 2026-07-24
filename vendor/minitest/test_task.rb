@@ -1,4 +1,4 @@
-# ruby-version-min: 1.9.0
+# ruby-version-min: 1.9.3
 
 require "shellwords"
 require "rbconfig"
