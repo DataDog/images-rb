@@ -7,7 +7,7 @@ RUN yum install -y epel-release \
         'gcc_dir="$(dirname "$(/usr/bin/gcc -print-file-name=crtbegin.o)")"' \
         'args=()' \
         'for arg in "$@"; do' \
-        '    if [[ "$arg" != "-fstack-protector-strong" ]]; then' \
+        '    if [[ "$arg" != "-fstack-protector-strong" && "$arg" != "-mbranch-protection=pac-ret" ]]; then' \
         '        args+=("$arg")' \
         '    fi' \
         'done' \

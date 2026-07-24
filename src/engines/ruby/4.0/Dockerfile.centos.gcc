@@ -7,7 +7,7 @@ RUN printf '%s\n' \
     'args=()' \
     'for arg; do' \
     '  case "$arg" in' \
-    '    -Wduplicated-cond|-Wimplicit-fallthrough=0|-Wmisleading-indentation) ;;' \
+    '    -Wduplicated-cond|-Wimplicit-fallthrough=0|-Wmisleading-indentation|-mbranch-protection=pac-ret) ;;' \
     '    *) args+=("$arg") ;;' \
     '  esac' \
     'done' \
