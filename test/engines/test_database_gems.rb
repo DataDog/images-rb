@@ -19,7 +19,8 @@ class TestDatabaseGems < Minitest::Test
     when Gem::Requirement.new("~> 2.5.0") then "1.3.13"
     when Gem::Requirement.new(">= 2.6", "< 3.0") then "1.4.4"
     when Gem::Requirement.new(">= 3.0", "< 3.4") then "1.6.6"
-    when Gem::Requirement.new(">= 3.4", "< 4.1") then "1.7.3"
+    when Gem::Requirement.new(">= 3.4", "< 4.0") then "1.7.3"
+    when Gem::Requirement.new(">= 4.0", "< 4.1") then "2.8.1"
     end
 
     with_gem_home do |env|
@@ -31,9 +32,10 @@ class TestDatabaseGems < Minitest::Test
   def test_mysql2
     ruby_version = Gem::Version.new(RUBY_VERSION)
     needs_bigdecimal = Gem::Requirement.new(">= 3.4").satisfied_by?(ruby_version)
+    bigdecimal_version = ruby_version >= Gem::Version.new("4.0") ? "4.1.2" : "3.1.8"
 
     with_gem_home do |env|
-      install_gem(env, "bigdecimal", "3.1.8", false) if needs_bigdecimal
+      install_gem(env, "bigdecimal", bigdecimal_version, false) if needs_bigdecimal
       install_gem(env, "mysql2", "0.5.7", false)
       requirements = ["-rmysql2"]
       requirements.unshift("-rbigdecimal") if needs_bigdecimal
@@ -47,10 +49,11 @@ class TestDatabaseGems < Minitest::Test
     needs_bigdecimal =
       Gem::Requirement.new("< 1.2.0").satisfied_by?(Gem::Version.new(pg_version)) &&
       Gem::Requirement.new(">= 3.4").satisfied_by?(ruby_version)
+    bigdecimal_version = ruby_version >= Gem::Version.new("4.0") ? "4.1.2" : "3.1.8"
 
     with_gem_home do |env|
       # pg < 1.2.0 loads but does not declare bigdecimal.
-      install_gem(env, "bigdecimal", "3.1.8", false) if needs_bigdecimal
+      install_gem(env, "bigdecimal", bigdecimal_version, false) if needs_bigdecimal
       install_gem(env, "pg", pg_version, true)
       requirements = ["-rpg"]
       requirements.unshift("-rbigdecimal") if needs_bigdecimal
