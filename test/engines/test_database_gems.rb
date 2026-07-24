@@ -1,3 +1,5 @@
+# ruby-version-min: 1.8.7
+
 require "bundler"
 require "minitest/autorun"
 require "open3"

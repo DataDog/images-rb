@@ -1,3 +1,5 @@
+# ruby-version-min: 1.9.0
+
 require "shellwords"
 require "rbconfig"
 require "rake/tasklib"
