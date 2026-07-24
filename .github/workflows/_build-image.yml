@@ -304,16 +304,19 @@ jobs:
         env:
           ALIAS_TAGS: ${{ needs.alias.outputs.tags }}
         run: |
+          alias_targets=()
           while IFS= read -r tag; do
-            docker buildx imagetools create \
-              -t ${{ steps.vars.outputs.IMAGE }}:"$tag-gha${{ github.run_id }}-g${{ github.sha }}" \
-              ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}
-            docker buildx imagetools create \
-              -t ${{ steps.vars.outputs.IMAGE }}:"$tag-g${{ github.sha }}" \
-              ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}
+            alias_targets+=(
+              -t ${{ steps.vars.outputs.IMAGE }}:"$tag-gha${{ github.run_id }}-g${{ github.sha }}"
+              -t ${{ steps.vars.outputs.IMAGE }}:"$tag-g${{ github.sha }}"
+            )
             if [ "${{ inputs.push }}" = true ]; then
-              docker buildx imagetools create \
-                -t ${{ steps.vars.outputs.IMAGE }}:"$tag" \
-                ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}
+              alias_targets+=(-t ${{ steps.vars.outputs.IMAGE }}:"$tag")
             fi
           done < <(jq -r '.[]' <<< "$ALIAS_TAGS")
+
+          if ((${#alias_targets[@]})); then
+            docker buildx imagetools create \
+              "${alias_targets[@]}" \
+              ${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}
+          fi
