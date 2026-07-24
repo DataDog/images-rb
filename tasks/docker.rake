@@ -287,7 +287,9 @@ namespace :docker do
 
       next if !force && satisfied?(-> { image_time("#{image}:#{tag}") }, deps)
 
-      sh "docker buildx build --platform #{platforms.join(",")} --cache-from=type=registry,ref=#{image}:#{tag} --output=type=image,push=#{push} --build-arg REPRO_RUN_KEY=#{repro_run_key} --build-arg SOURCE_DATE_EPOCH=#{source_date_epoch} --build-arg BUILDKIT_INLINE_CACHE=1 -f #{dockerfile} -t #{image}:#{tag} #{context}"
+      cache_from = [tag, target[:aliasing]].compact.uniq.map { |cache_tag| "--cache-from=type=registry,ref=#{image}:#{cache_tag}" }.join(" ")
+
+      sh "docker buildx build --platform #{platforms.join(",")} #{cache_from} --output=type=image,push=#{push} --build-arg REPRO_RUN_KEY=#{repro_run_key} --build-arg SOURCE_DATE_EPOCH=#{source_date_epoch} --build-arg BUILDKIT_INLINE_CACHE=1 -f #{dockerfile} -t #{image}:#{tag} #{context}"
     end
   end
 
