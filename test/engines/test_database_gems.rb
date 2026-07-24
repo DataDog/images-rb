@@ -27,18 +27,32 @@ class TestDatabaseGems < Minitest::Test
   end
 
   def test_mysql2
+    ruby_version = Gem::Version.new(RUBY_VERSION)
+    needs_bigdecimal = Gem::Requirement.new(">= 3.4").satisfied_by?(ruby_version)
+
     with_gem_home do |env|
+      install_gem(env, "bigdecimal", "3.1.8", false) if needs_bigdecimal
       install_gem(env, "mysql2", "0.5.7", false)
-      run!(env, [Gem.ruby, "-rmysql2", "-e", "abort unless Mysql2::Client.info[:version]"])
+      requirements = ["-rmysql2"]
+      requirements.unshift("-rbigdecimal") if needs_bigdecimal
+      run!(env, [Gem.ruby, *requirements, "-e", "abort unless Mysql2::Client.info[:version]"])
     end
   end
 
   def test_pg
-    version = ENV["IMAGE_LIBC"] == "centos" ? "1.1.4" : "1.5.9"
+    ruby_version = Gem::Version.new(RUBY_VERSION)
+    pg_version = ENV["IMAGE_LIBC"] == "centos" ? "1.1.4" : "1.5.9"
+    needs_bigdecimal =
+      Gem::Requirement.new("< 1.2.0").satisfied_by?(Gem::Version.new(pg_version)) &&
+      Gem::Requirement.new(">= 3.4").satisfied_by?(ruby_version)
 
     with_gem_home do |env|
-      install_gem(env, "pg", version, true)
-      run!(env, [Gem.ruby, "-rpg", "-e", "abort unless PG.library_version > 0"])
+      # pg < 1.2.0 loads but does not declare bigdecimal.
+      install_gem(env, "bigdecimal", "3.1.8", false) if needs_bigdecimal
+      install_gem(env, "pg", pg_version, true)
+      requirements = ["-rpg"]
+      requirements.unshift("-rbigdecimal") if needs_bigdecimal
+      run!(env, [Gem.ruby, *requirements, "-e", "abort unless PG.library_version > 0"])
     end
   end
 
