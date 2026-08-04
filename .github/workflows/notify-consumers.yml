@@ -29,6 +29,8 @@ jobs:
   determine-inputs:
     name: "Determine trigger inputs"
     runs-on: ubuntu-24.04
+    permissions:
+      actions: read
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
@@ -48,6 +50,20 @@ jobs:
             echo "triggered_by=merge" >> "$GITHUB_OUTPUT"
           fi
           echo "run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+
+      # A manual dispatch can be run against any ref at any time, including
+      # before Main has built and published an image for that commit.
+      - name: Verify image was published for this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT: ${{ steps.inputs.outputs.commit }}
+        run: |
+          conclusion=$(gh api "repos/${{ github.repository }}/actions/runs?head_sha=$COMMIT&status=completed" \
+            --jq '[.workflow_runs[] | select(.name == "Main")] | sort_by(.run_started_at) | last | .conclusion // "none"')
+          if [ "$conclusion" != "success" ]; then
+            echo "::error::No successful Main run found for commit $COMMIT (found: $conclusion). The image for this commit may not be published yet."
+            exit 1
+          fi
 
   notify:
     name: "Notify ${{ matrix.repo }}"
