@@ -58,14 +58,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # ADD NEW CONSUMER HERE
+          # To add a new consumer: add a { repo, policy } entry below, add a
+          # matching self.<policy> dd-octo-sts policy in the consumer repo,
+          # get a cross-repo dd-octo-sts grant provisioned for images-rb to
+          # dispatch into it, and make sure the consumer repo actually has a
+          # workflow listening for the images-updated repository_dispatch
+          # event. Until all of that exists, adding a matrix entry here will
+          # just fail on every run.
           - repo: DataDog/dd-trace-rb
             policy: images-rb.notify-dd-trace-rb
-          # - repo: DataDog/system-tests
-          #   policy: images-rb.notify-system-tests
-          # Not yet wired up: system-tests has no receiver workflow for the
-          # images-updated dispatch, and no dd-octo-sts grant/policy exists.
-          # Uncomment once both are in place.
     steps:
       - name: Get GitHub Token via dd-octo-sts
         id: generate-token
