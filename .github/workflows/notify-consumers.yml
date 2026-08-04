@@ -58,6 +58,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # ADD NEW CONSUMER HERE
           - repo: DataDog/dd-trace-rb
             policy: images-rb.notify-dd-trace-rb
           # - repo: DataDog/system-tests
