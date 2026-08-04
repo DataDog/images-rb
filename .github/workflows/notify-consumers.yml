@@ -1,0 +1,84 @@
+name: Notify Consumers
+
+# To manually re-trigger a consumer pin update, run:
+#  `gh workflow run "Notify Consumers" --ref main`
+
+on: # yamllint disable-line rule:truthy
+  workflow_run:
+    workflows: ["Main"]
+    types: [completed]
+  workflow_dispatch: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: true
+
+# Default permissions for all jobs
+permissions: {}
+
+jobs:
+  determine-inputs:
+    name: "Determine trigger inputs"
+    runs-on: ubuntu-24.04
+    # workflow_run fires on EVERY completion of Main (any branch, any outcome),
+    # so this job only actually runs for:
+    #   - a successful Main build on `main` (the commit-tagged image was just
+    #     published, e.g. a PR merged to main) -> triggered_by=merge, or
+    #   - a manual workflow_dispatch (re-trigger a stuck/skipped pin update)
+    #     -> triggered_by=manual
+    # A failed Main run, or a successful run on a PR/feature branch, is
+    # skipped: no image was published for consumers to pin to.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    outputs:
+      commit: ${{ steps.inputs.outputs.commit }}
+      triggered_by: ${{ steps.inputs.outputs.triggered_by }}
+      run_url: ${{ steps.inputs.outputs.run_url }}
+    steps:
+      - name: Determine trigger inputs
+        id: inputs
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "commit=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            echo "triggered_by=manual" >> "$GITHUB_OUTPUT"
+          else
+            echo "commit=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+            echo "triggered_by=merge" >> "$GITHUB_OUTPUT"
+          fi
+          echo "run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+
+  notify:
+    name: "Notify ${{ matrix.repo }}"
+    needs: determine-inputs
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repo: DataDog/dd-trace-rb
+            policy: images-rb.notify-dd-trace-rb
+    steps:
+      - name: Get GitHub Token via dd-octo-sts
+        id: generate-token
+        uses: DataDog/dd-octo-sts-action@96a25462dbcb10ebf0bfd6e2ccc917d2ab235b9a # v1.0.4
+        with:
+          scope: ${{ matrix.repo }}
+          policy: ${{ matrix.policy }}
+
+      # There appers to be a race condition; wait it out a bit
+      # See: https://datadoghq.atlassian.net/browse/APMLP-1305
+      - name: Wait for token propagation
+        run: sleep 30
+
+      - name: Dispatch to ${{ matrix.repo }}
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+        run: |
+          gh api "repos/${{ matrix.repo }}/dispatches" \
+            -f event_type=images-updated \
+            -f "client_payload[commit]=${{ needs.determine-inputs.outputs.commit }}" \
+            -f "client_payload[source_run_url]=${{ needs.determine-inputs.outputs.run_url }}" \
+            -f "client_payload[triggered_by]=${{ needs.determine-inputs.outputs.triggered_by }}"
