@@ -1,7 +1,7 @@
 name: Notify dd-trace-rb
 
-# To preview an unmerged images-rb PR's effect on dd-trace-rb, run:
-#  `gh workflow run "Notify dd-trace-rb" --ref <your-branch>`
+# To manually re-trigger a dd-trace-rb pin update, run:
+#  `gh workflow run "Notify dd-trace-rb" --ref main`
 
 on: # yamllint disable-line rule:truthy
   workflow_run:
@@ -31,11 +31,9 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "commit=${{ github.sha }}" >> "$GITHUB_OUTPUT"
-            echo "is_preview=true" >> "$GITHUB_OUTPUT"
-            echo "triggered_by=manual-preview" >> "$GITHUB_OUTPUT"
+            echo "triggered_by=manual" >> "$GITHUB_OUTPUT"
           else
             echo "commit=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
-            echo "is_preview=false" >> "$GITHUB_OUTPUT"
             echo "triggered_by=merge" >> "$GITHUB_OUTPUT"
           fi
           echo "run_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_OUTPUT"
@@ -59,6 +57,5 @@ jobs:
           gh api repos/DataDog/dd-trace-rb/dispatches \
             -f event_type=images-updated \
             -f "client_payload[commit]=${{ steps.inputs.outputs.commit }}" \
-            -F "client_payload[is_preview]=${{ steps.inputs.outputs.is_preview }}" \
             -f "client_payload[source_run_url]=${{ steps.inputs.outputs.run_url }}" \
             -f "client_payload[triggered_by]=${{ steps.inputs.outputs.triggered_by }}"
