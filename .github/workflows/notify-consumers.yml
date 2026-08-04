@@ -1,5 +1,14 @@
 name: Notify Consumers
 
+# workflow_run fires on EVERY completion of Main (any branch, any outcome),
+# so this workflow only actually runs for:
+#   - a successful Main build on `main` (the commit-tagged image was just
+#     published, e.g. a PR merged to main) -> triggered_by=merge, or
+#   - a manual workflow_dispatch (re-trigger a stuck/skipped pin update)
+#     -> triggered_by=manual
+# A failed Main run, or a successful run on a PR/feature branch, is
+# skipped: no image was published for consumers to pin to.
+
 # To manually re-trigger a consumer pin update, run:
 #  `gh workflow run "Notify Consumers" --ref main`
 
@@ -20,14 +29,6 @@ jobs:
   determine-inputs:
     name: "Determine trigger inputs"
     runs-on: ubuntu-24.04
-    # workflow_run fires on EVERY completion of Main (any branch, any outcome),
-    # so this job only actually runs for:
-    #   - a successful Main build on `main` (the commit-tagged image was just
-    #     published, e.g. a PR merged to main) -> triggered_by=merge, or
-    #   - a manual workflow_dispatch (re-trigger a stuck/skipped pin update)
-    #     -> triggered_by=manual
-    # A failed Main run, or a successful run on a PR/feature branch, is
-    # skipped: no image was published for consumers to pin to.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
@@ -63,8 +64,7 @@ jobs:
           # get a cross-repo dd-octo-sts grant provisioned for images-rb to
           # dispatch into it, and make sure the consumer repo actually has a
           # workflow listening for the images-updated repository_dispatch
-          # event. Until all of that exists, adding a matrix entry here will
-          # just fail on every run.
+          # event.
           - repo: DataDog/dd-trace-rb
             policy: images-rb.notify-dd-trace-rb
     steps:
