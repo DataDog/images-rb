@@ -60,6 +60,11 @@ jobs:
         include:
           - repo: DataDog/dd-trace-rb
             policy: images-rb.notify-dd-trace-rb
+          # - repo: DataDog/system-tests
+          #   policy: images-rb.notify-system-tests
+          # Not yet wired up: system-tests has no receiver workflow for the
+          # images-updated dispatch, and no dd-octo-sts grant/policy exists.
+          # Uncomment once both are in place.
     steps:
       - name: Get GitHub Token via dd-octo-sts
         id: generate-token
