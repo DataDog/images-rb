@@ -1,21 +1,38 @@
 name: Main
 
 on:
+  workflow_dispatch:
+    inputs:
+      push:
+        description: Push release images
+        required: true
+        type: boolean
+        default: true
   push:
     branches:
       - "**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ inputs.push && 'publish' || github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   services:
     name: Services
     uses: ./.github/workflows/services.yml
+    with:
+      push: ${{ inputs.push && github.ref == 'refs/heads/main' }}
     permissions:
+      contents: read
       packages: write
 
   ruby:
     name: Ruby
     uses: ./.github/workflows/ruby.yml
+    with:
+      push: ${{ inputs.push && github.ref == 'refs/heads/main' }}
     permissions:
+      contents: read
       packages: write
 
   nix:

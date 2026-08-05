@@ -42,6 +42,8 @@ jobs:
   alias:
     name: Alias (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }})
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     outputs:
       tags: ${{ steps.aliases.outputs.tags }}
     steps:
@@ -89,6 +91,7 @@ jobs:
         arch: ${{ fromJSON(inputs.arch) }}
     runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     permissions:
+      contents: read
       packages: write
     name: Build (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}, ${{ matrix.arch }})
     steps:
