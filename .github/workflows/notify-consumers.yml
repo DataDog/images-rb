@@ -76,13 +76,12 @@ jobs:
       matrix:
         include:
           # To add a new consumer: add a { repo, policy } entry below, add a
-          # matching self.<policy> dd-octo-sts policy in the consumer repo,
-          # get a cross-repo dd-octo-sts grant provisioned for images-rb to
-          # dispatch into it, and make sure the consumer repo actually has a
-          # workflow listening for the images-updated repository_dispatch
-          # event.
+          # matching dd-octo-sts trust policy file in the consumer repo
+          # naming this workflow (DataDog/images-rb:notify-consumers.yml) as
+          # caller, and make sure the consumer repo actually has a workflow
+          # listening for the images-updated repository_dispatch event.
           - repo: DataDog/dd-trace-rb
-            policy: images-rb.notify-dd-trace-rb
+            policy: images-rb.notify-consumers
     steps:
       - name: Get GitHub Token via dd-octo-sts
         id: generate-token
