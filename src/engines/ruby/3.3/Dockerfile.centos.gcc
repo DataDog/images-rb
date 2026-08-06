@@ -1,0 +1,16 @@
+FROM ghcr.io/datadog/images-rb/engines/ruby:3.3-centos
+
+RUN yum install -y gcc gcc-c++ make binutils file patch pkgconfig mariadb-devel postgresql-devel sqlite-devel
+
+RUN printf '%s\n' \
+    '#!/usr/bin/env bash' \
+    'args=()' \
+    'for arg; do' \
+    '  case "$arg" in' \
+    '    -Wduplicated-cond|-Wimplicit-fallthrough=0|-Wmisleading-indentation) ;;' \
+    '    *) args+=("$arg") ;;' \
+    '  esac' \
+    'done' \
+    'exec /usr/bin/gcc "${args[@]}"' \
+    > /usr/local/bin/gcc \
+    && chmod +x /usr/local/bin/gcc

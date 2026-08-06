@@ -1,0 +1,9 @@
+FROM ghcr.io/datadog/images-rb/engines/ruby:4.0-centos
+
+RUN yum install -y devtoolset-10-gcc devtoolset-10-gcc-c++ make binutils file patch pkgconfig mariadb-devel postgresql-devel sqlite-devel
+
+RUN printf '%s\n' \
+    '#!/usr/bin/env bash' \
+    'exec /opt/rh/devtoolset-10/root/usr/bin/gcc "$@"' \
+    > /usr/local/bin/gcc \
+    && chmod +x /usr/local/bin/gcc
