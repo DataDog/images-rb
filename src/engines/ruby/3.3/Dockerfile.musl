@@ -32,6 +32,7 @@ ENV LANG=en_US.UTF-8
 
 ## Install a pinned RubyGems and Bundler
 RUN gem update --system 4.0.17
+RUN gem install bundler --version 4.0.17
 
 # Install additional gems that are in CRuby but missing from the above
 # JRuby install distribution. These are version-pinned for reproducibility.
