@@ -159,6 +159,7 @@ if dpkg -l ruby 2>/dev/null | grep -q '^ii'; then exit 1; fi
 
 # update gem version
 gem update --system 4.0.17
+gem install bundler --version 4.0.17
 
 # rough smoke test
 ruby --version
