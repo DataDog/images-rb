@@ -33,7 +33,18 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
 # For the sake of reproducibility subsequent steps (including in dependent
 # images) should not do `apt-get update`, instead this base image should be
 # updated by changing the `REPRO_RUN_KEY`.
-RUN true "${REPRO_RUN_KEY}" && apt-get update
+#
+# Debian 11 (bullseye) reached EOL: the live and security pools are gone and
+# their Release files are past their Valid-Until. The stock debian:11 base
+# image keeps the snapshot.debian.org sources it was built from commented in
+# /etc/apt/sources.list; switch to those frozen sources and skip the validity
+# check. The switch persists in the image, so `apt-get install` keeps working
+# in dependent images as well.
+RUN true "${REPRO_RUN_KEY}" && \
+    sed -i 's|^deb http://deb.debian.org|# deb http://deb.debian.org|' /etc/apt/sources.list && \
+    sed -i 's|^# deb http://snapshot| deb http://snapshot|' /etc/apt/sources.list && \
+    echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until && \
+    apt-get update
 
 # Install locale and timezone support first
 RUN apt-get install -y locales tzdata --no-install-recommends
