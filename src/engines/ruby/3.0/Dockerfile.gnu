@@ -119,6 +119,10 @@ mv file.c.new file.c
 
 autoconf
 
+# Link with full RELRO like the Docker-official Ruby images (https://github.com/docker-library/ruby/pull/529):
+# configure seeds DLDFLAGS from LDFLAGS, so extensions built here also resolve every symbol at load time.
+export LDFLAGS='-Wl,-z,relro,-z,now'
+
 gnuArch="$(gcc -dumpmachine)"
 ./configure \
     --build="$gnuArch" \
