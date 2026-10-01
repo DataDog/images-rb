@@ -45,7 +45,7 @@ jobs:
     name: Build (${{ matrix.service }})
     steps:
       - name: Set up Docker
-        uses: crazy-max/ghaction-setup-docker@77e84dbf09b47d1e29270283c22f16145aa85ca1 # v5.4.0
+        uses: crazy-max/ghaction-setup-docker@2bf61fb9464cc67f0cbdeabed6aa0380accd1c70 # v5.5.0
         with:
           version: v28.5.1
           daemon-config: |
@@ -55,7 +55,7 @@ jobs:
               }
             }
       - name: Set up Ruby
-        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1.321.0
+        uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
         with:
           ruby-version: "3.4"
       - name: Checkout
