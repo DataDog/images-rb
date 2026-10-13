@@ -46,7 +46,8 @@ class TestDatabaseGems < Minitest::Test
 
   def test_pg
     ruby_version = Gem::Version.new(RUBY_VERSION)
-    pg_version = (ENV["IMAGE_LIBC"] == "centos") ? "1.1.4" : "1.5.9"
+    legacy_pg = ENV["IMAGE_LIBC"] == "centos" && ruby_version < Gem::Version.new("4.1")
+    pg_version = legacy_pg ? "1.1.4" : "1.5.9"
     needs_bigdecimal =
       Gem::Requirement.new("< 1.2.0").satisfied_by?(Gem::Version.new(pg_version)) &&
       Gem::Requirement.new(">= 3.4").satisfied_by?(ruby_version)
