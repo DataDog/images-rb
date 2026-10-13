@@ -231,11 +231,11 @@ jobs:
           # GNU Ruby images used by dd-trace-rb must compile each database
           # extension from source against the development packages they carry.
           case "${{ inputs.engine }}:${{ inputs.libc }}:${{ inputs.version }}" in
-            ruby:gnu:2.[5-7]|ruby:gnu:3.[0-5]|ruby:gnu:4.0)
+            ruby:gnu:2.[5-7]|ruby:gnu:3.[0-5]|ruby:gnu:4.[0-1])
               case "${{ inputs.version }}" in
                 2.[5-7]) sqlite_version=1.4.4 ;;
                 3.[0-3]) sqlite_version=1.6.6 ;;
-                3.[4-5]|4.0) sqlite_version=1.7.3 ;;
+                3.[4-5]|4.[0-1]) sqlite_version=1.7.3 ;;
               esac
             docker run --rm -e "SQLITE_VERSION=$sqlite_version" ${{ steps.vars.outputs.IMAGE }}:test /bin/sh -c \
               'gem install sqlite3 -v "$SQLITE_VERSION" --platform ruby --no-document &&
