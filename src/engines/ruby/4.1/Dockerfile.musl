@@ -1,0 +1,139 @@
+# Alpine 3.23
+FROM public.ecr.aws/docker/library/alpine:3.23
+
+# A few RUN actions in Dockerfiles are subject to uncontrollable outside
+# variability: an identical command would be the same from `docker build`'s
+# point of view but does not indicate the result would be identical at
+# different points in time.
+#
+# This causes two possible issues:
+#
+# - one wants to capture a new state and so wants the identical
+#   non-reproducible command to produce a new result. This could be achieved
+#   with --no-cache but this affects every single operation in a Dockerfile
+# - one wants to identify a specific state and leverage caching at that
+#   specific state.
+#
+# To that end a BUILD_ARG is introduced to capture an arbitrary identifier of
+# that state (typically time) that is introduced in non-reproducible commands
+# to make them appear different to Docker.
+#
+# Of course it only works when caching data is available: two independent
+# builds with the same value and no cache shared would produce different
+# results.
+ARG REPRO_RUN_KEY=0
+
+# `apk update` is uncontrolled and fetches whatever is today's index.
+# For the sake of reproducibility subsequent steps (including in dependent
+# images) should not do `apk update`, instead this base image should be
+# updated by changing the `REPRO_RUN_KEY`.
+RUN true "${REPRO_RUN_KEY}" && apk update
+
+# Skip installing gem documentation
+COPY <<GEMRC /usr/local/etc/gemrc
+install: --no-document
+update: --no-document
+GEMRC
+
+ENV LANG="en_US.UTF-8"                                                                      \
+    RUBY_MAJOR="4.1"                                                                        \
+    RUBY_VERSION="4.1.0-preview1"                                                           \
+    RUBY_DOWNLOAD_SHA256="b81f20bf2bc72aa360785eb77ffa0c9f15343ac7316637fbf347500fc3e2e3a8"
+
+RUN <<SHELL
+set -eux
+
+apk add curl ca-certificates git
+apk add --virtual .ruby-builddeps \
+    build-base \
+    autoconf \
+    bison \
+    patch \
+    xz \
+    linux-headers \
+    zlib-dev \
+    yaml-dev \
+    gdbm-dev \
+    gmp-dev \
+    readline-dev \
+    ncurses-dev \
+    libffi-dev \
+    openssl-dev \
+    rust \
+    cargo \
+    pax-utils
+
+curl -o ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz"
+echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.xz" | sha256sum -c -
+mkdir -p /usr/src/ruby
+tar -xJf ruby.tar.xz -C /usr/src/ruby --strip-components=1
+rm ruby.tar.xz
+
+cd /usr/src/ruby
+
+# hack in "ENABLE_PATH_CHECK" disabling to suppress:
+#   warning: Insecure world writable dir
+{
+    echo '#define ENABLE_PATH_CHECK 0'
+    echo
+    cat file.c
+} > file.c.new
+mv file.c.new file.c
+
+# Match the official Alpine image's main-thread stack sizing fix.
+# https://bugs.ruby-lang.org/issues/14387
+curl -o thread-stack-fix.patch 'https://bugs.ruby-lang.org/attachments/download/7081/0001-thread_pthread.c-make-get_main_stack-portable-on-lin.patch'
+echo '3ab628a51d92fdf0d2b5835e93564857aea73e0c1de00313864a94a6255cb645 *thread-stack-fix.patch' | sha256sum -c -
+patch -p1 -i thread-stack-fix.patch
+rm thread-stack-fix.patch
+
+autoconf
+
+export LDFLAGS='-Wl,-z,relro,-z,now'
+
+gnuArch="$(gcc -dumpmachine)"
+./configure \
+    --build="$gnuArch" \
+    --disable-install-doc \
+    --disable-shared \
+    --enable-yjit --enable-zjit
+make -j "$(nproc)"
+make install
+
+cd /
+rm -r /usr/src/ruby
+
+# verify ruby is not installed via apk
+if apk info -e ruby 2>/dev/null; then exit 1; fi
+
+gem update --system 4.0.19
+gem install bundler --version 4.0.19
+
+# Preserve shared libraries before removing the build toolchain.
+runDeps="$( \
+    find /usr/local -type f \( -executable -o -name '*.so*' \) -exec scanelf --needed --nobanner --format '%n#p' '{}' ';' \
+        | tr ',' '\n' \
+        | sort -u \
+        | awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
+)"
+apk add --virtual .ruby-rundeps $runDeps
+apk del --no-network .ruby-builddeps
+
+# rough smoke test
+ruby --version
+gem --version
+bundle --version
+SHELL
+
+RUN gem install rake:13.2.1
+
+# don't create ".bundle" in all our apps
+ENV GEM_HOME=/usr/local/bundle
+ENV BUNDLE_SILENCE_ROOT_WARNING=1 \
+    BUNDLE_APP_CONFIG="$GEM_HOME"
+ENV PATH=$GEM_HOME/bin:$PATH
+
+# adjust permissions of a few directories for running "gem install" as an arbitrary user
+RUN mkdir -p "$GEM_HOME" && chmod 1777 "$GEM_HOME"
+
+CMD [ "irb" ]

@@ -95,6 +95,10 @@ jobs:
             version: "4.0"
             libc: gnu
             arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "4.1"
+            libc: gnu
+            arch: ["x86_64", "aarch64"]
           - engine: jruby
             version: "9.2"
             libc: gnu
@@ -166,6 +170,10 @@ jobs:
             arch: ["x86_64", "aarch64"]
           - engine: ruby
             version: "4.0"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "4.1"
             libc: musl
             arch: ["x86_64", "aarch64"]
           - engine: jruby
@@ -251,6 +259,10 @@ jobs:
             arch: ["x86_64", "aarch64"]
           - engine: ruby
             version: "4.0"
+            libc: centos
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "4.1"
             libc: centos
             arch: ["x86_64", "aarch64"]
     name: ${{ matrix.engine }}:${{ matrix.version }}-${{ matrix.libc }}
