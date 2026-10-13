@@ -226,6 +226,7 @@ jobs:
           docker run --rm \
             -v "${PWD}":"${PWD}" -w "${PWD}" \
             -e BUNDLE_GEMFILE=gemfiles/${{ inputs.engine }}-${{ inputs.version }}.gemfile \
+            -e IMAGE_COMPILER=${{ inputs.dockerfile_suffix }} \
             ${{ steps.vars.outputs.IMAGE }}:test \
             /bin/sh -c 'bundle config set without "check ide" && bundle config set with "test" && bundle install && bundle exec rake test'
           # GNU Ruby images used by dd-trace-rb must compile each database
