@@ -66,7 +66,9 @@ RUN true "${REPRO_RUN_KEY}" && yum makecache -y
 # localedef has been forcefully removed by:
 # rm -rf "$target"/usr/{{lib,share}/locale,{lib,lib64}/gconv,bin/localedef,sbin/build-locale-archive}
 # fun: CentOS 8 has `yum list glibc-langpack-\*` but not CentOS 7 :'(
-# Update glibc and its locale data together so aarch64 gconv modules match.
+# On aarch64, the base image may ship an older glibc than what the altarch
+# repo provides; updating glibc + glibc-common brings in gconv modules that
+# localedef needs to generate the locale.
 RUN <<SHELL
 set -eu
 yum update -y glibc glibc-common
@@ -77,8 +79,8 @@ localedef -v -c -i en_US -f UTF-8 en_US.UTF-8 || true
 test "$(LC_ALL=en_US.UTF-8 locale charmap)" = UTF-8
 SHELL
 
-RUN yum install -y curl gcc gcc-c++ gettext make patchutils patch libtool pkgconfig gettext file zip unzip git
-
+# Install runtime packages only (no compiler or build tools)
+RUN yum install -y curl gettext file zip unzip git
 # Skip installing gem documentation
 COPY <<GEMRC /usr/local/etc/gemrc
 install: --no-document
@@ -96,7 +98,16 @@ ENV LANG="en_US.UTF-8"                                                          
 RUN <<SHELL
 set -eux
 
-yum install -y xz gcc automake bison zlib-devel libyaml-devel openssl-devel gdbm-devel readline-devel ncurses-devel libffi-devel
+# Install runtime libraries that Ruby links against; these must be present
+# BEFORE the checkpoint so they survive the rollback.
+yum install -y zlib libyaml gdbm readline ncurses-libs libffi openssl-libs
+
+# Record checkpoint: everything after this transaction will be rolled back.
+yum_checkpoint=$(yum history list all 2>/dev/null | awk '$1 ~ /^[0-9]+$/ {print $1; exit}')
+
+yum install -y \
+    gcc gcc-c++ make patchutils patch libtool pkgconfig xz automake autoconf bison \
+    zlib-devel libyaml-devel openssl-devel gdbm-devel readline-devel ncurses-devel libffi-devel
 
 curl -o ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR%-rc}/ruby-$RUBY_VERSION.tar.xz"
 echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.xz" | sha256sum --check --strict
@@ -125,32 +136,6 @@ gnuArch="$(gcc -dumpmachine)"
 make -j "$(nproc)"
 make install
 
-# 	find /usr/local -type f -executable -not \( -name '*tkinter*' \) -exec ldd '{}' ';' \
-# 		| awk '/=>/ { print $(NF-1) }' \
-# 		| sort -u \
-# 		| grep -vE '^/usr/local/lib/' \
-# 		| xargs -r dpkg-query --search \
-# 		| cut -d: -f1 \
-# 		| sort -u \
-# 		| xargs -r apt-mark manual \
-#
-# 	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
-#
-# find /usr/local -type f -executable -not \( -name '*tkinter*' \) -exec ldd '{}' ';' \
-#       | awk '/=>/ { print $(NF-1) }' \
-#       | grep -v '=>' \
-#       | sort -u \
-#       | grep -vE '^/usr/local/lib/' \
-#       | xargs -r rpm -qf \
-#       | sort -u \
-#       | xargs -r yum ?mark-manual?
-#
-# yum autoremove -y
-# yum remove --setopt=clean_requirements_on_remove=1
-# package-cleanup --leaves && yum autoremove # yum-utils
-# sudo yum history list pdftk
-# sudo yum history undo 88
-
 cd /
 rm -r /usr/src/ruby
 if yum list installed ruby; then exit 1; fi
@@ -163,6 +148,11 @@ ruby --version
 gem --version
 bundle --version
 
+# Roll back to the checkpoint: removes compilers, build tools, and -devel
+# packages while preserving the runtime libraries installed before
+# the checkpoint.
+yum -y history rollback "${yum_checkpoint}"
+yum clean all
 SHELL
 
 # don't create ".bundle" in all our apps

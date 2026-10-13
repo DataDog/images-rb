@@ -83,7 +83,7 @@ RUN true "${REPRO_RUN_KEY}" && yum makecache -y
 # localedef has been forcefully removed by:
 # rm -rf "$target"/usr/{{lib,share}/locale,{lib,lib64}/gconv,bin/localedef,sbin/build-locale-archive}
 # fun: CentOS 8 has `yum list glibc-langpack-\*` but not CentOS 7 :'(
-# Update glibc and its locale data together so aarch64 gconv modules match.
+# On aarch64, update glibc and its locale data together so gconv modules match.
 RUN <<SHELL
 set -eu
 yum update -y glibc glibc-common
@@ -94,7 +94,7 @@ localedef -v -c -i en_US -f UTF-8 en_US.UTF-8 || true
 test "$(LC_ALL=en_US.UTF-8 locale charmap)" = UTF-8
 SHELL
 
-RUN yum install -y curl gcc gcc-c++ gettext make patchutils patch libtool pkgconfig gettext file zip unzip git devtoolset-10 cmake3
+RUN yum install -y curl gettext file zip unzip git
 
 # Skip installing gem documentation
 COPY <<GEMRC /usr/local/etc/gemrc
@@ -112,6 +112,15 @@ ENV LANG="en_US.UTF-8"                                                          
 
 RUN <<SHELL
 set -eux
+
+# Preserve runtime libraries across the build transaction rollback.
+yum install -y zlib libyaml gdbm readline ncurses-libs libffi openssl-libs
+yum_checkpoint=$(yum history list all 2>/dev/null | awk '$1 ~ /^[0-9]+$/ {print $1; exit}')
+
+yum install -y \
+    gcc gcc-c++ make patchutils patch libtool pkgconfig xz automake autoconf bison \
+    zlib-devel libyaml-devel gdbm-devel readline-devel ncurses-devel libffi-devel \
+    devtoolset-10 cmake3 perl-IPC-Cmd perl-Test-Simple
 
 # Enable devtoolset-10 for gcc 10; not devtoolset-11, which is missing necessary packages
 # this mimics `scl enable devtoolset-10 -- bash`
@@ -151,8 +160,6 @@ if [ -n "$rustArch" ]; then
     rustc --version
     cargo --version
 fi
-
-yum install -y xz gcc automake bison zlib-devel libyaml-devel gdbm-devel readline-devel ncurses-devel libffi-devel perl-IPC-Cmd perl-Test-Simple
 
 OPENSSL_VERSION='1.1.1w'
 OPENSSL_SHA256='cf3098950cb4d853ad95c0841f1f9c6d3dc102dccfcacd521d93925208b76ac8'
@@ -210,17 +217,6 @@ make install
 
 rm -rf /tmp/rust
 
-# 	find /usr/local -type f -executable -not \( -name '*tkinter*' \) -exec ldd '{}' ';' \
-# 		| awk '/=>/ { print $(NF-1) }' \
-# 		| sort -u \
-# 		| grep -vE '^/usr/local/lib/' \
-# 		| xargs -r dpkg-query --search \
-# 		| cut -d: -f1 \
-# 		| sort -u \
-# 		| xargs -r apt-mark manual \
-#
-# 	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
-
 cd /
 rm -r /usr/src/ruby
 if yum list installed ruby; then exit 1; fi
@@ -233,6 +229,9 @@ gem install bundler --version 4.0.19
 ruby --version
 gem --version
 bundle --version
+
+yum -y history rollback "${yum_checkpoint}"
+yum clean all
 
 SHELL
 

@@ -10,10 +10,7 @@ class TestDatabaseGems < Minitest::Test
     ruby_version = Gem::Version.new(RUBY_VERSION)
     skip "database gem coverage starts at Ruby 2.5" unless Gem::Requirement.new(">= 2.5").satisfied_by?(ruby_version)
     skip "database gems require CRuby" unless ENV["IMAGE_ENGINE"] == "ruby"
-    # GNU base images still carry the compiler until their runtime split lands.
-    compiler = [".gcc", ".clang"].include?(ENV["IMAGE_COMPILER"])
-    compiler ||= ENV["IMAGE_LIBC"] == "gnu" && ENV["IMAGE_COMPILER"] == ""
-    skip "database gems require a compiler image" unless compiler
+    skip "database gems require a compiler image" unless [".gcc", ".clang"].include?(ENV["IMAGE_COMPILER"])
   end
 
   def test_sqlite3
