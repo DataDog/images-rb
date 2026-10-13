@@ -1,4 +1,3 @@
-# Alpine 3.23
 FROM public.ecr.aws/docker/library/alpine:3.23
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
