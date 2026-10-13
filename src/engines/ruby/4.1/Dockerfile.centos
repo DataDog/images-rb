@@ -83,16 +83,18 @@ RUN true "${REPRO_RUN_KEY}" && yum makecache -y
 # localedef has been forcefully removed by:
 # rm -rf "$target"/usr/{{lib,share}/locale,{lib,lib64}/gconv,bin/localedef,sbin/build-locale-archive}
 # fun: CentOS 8 has `yum list glibc-langpack-\*` but not CentOS 7 :'(
-RUN yum reinstall -y glibc-common
+# Update glibc and its locale data together so aarch64 gconv modules match.
+RUN <<SHELL
+set -eu
+yum update -y glibc glibc-common
+if [ ! -x /usr/bin/localedef ] || [ ! -f /usr/share/i18n/locales/en_US ] || [ ! -f /usr/share/i18n/charmaps/UTF-8.gz ] || [ ! -f /usr/lib64/gconv/gconv-modules ]; then
+    yum reinstall -y glibc-common
+fi
+localedef -v -c -i en_US -f UTF-8 en_US.UTF-8 || true
+test "$(LC_ALL=en_US.UTF-8 locale charmap)" = UTF-8
+SHELL
 
 RUN yum install -y curl gcc gcc-c++ gettext make patchutils patch libtool pkgconfig gettext file zip unzip git devtoolset-10 cmake3
-
-# fun: this has to be after `yum install curl gcc make`... but only on aarch64; go figure
-# extra fun: table is botched, localedef not happy, swallow result and test `locale` for errors
-RUN <<SHELL
-localedef -v -c -i en_US -f UTF-8 en_US.UTF-8 || true
-if locale 2>&1 | grep -e 'locale: Cannot set LC_.* to default locale: No such file or directory'; then exit 1; fi
-SHELL
 
 # Skip installing gem documentation
 COPY <<GEMRC /usr/local/etc/gemrc
