@@ -6,6 +6,7 @@ RUN apk add \
     fortify-headers \
     g++ \
     gcc \
+    gmp-dev \
     make \
     mariadb-connector-c-dev \
     musl-dev \
