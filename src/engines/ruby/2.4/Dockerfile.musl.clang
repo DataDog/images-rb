@@ -1,3 +1,4 @@
 FROM ghcr.io/datadog/images-rb/engines/ruby:2.4-musl
 
-RUN apk add binutils file fortify-headers make musl-dev clang
+# Older Ruby records GMP in the linker flags used by native extensions.
+RUN apk add binutils file fortify-headers make musl-dev clang gmp-dev

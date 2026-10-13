@@ -1,3 +1,4 @@
 FROM ghcr.io/datadog/images-rb/engines/ruby:3.5-musl
 
-RUN apk add binutils file fortify-headers make musl-dev clang
+# mkmf configuration probes link against Ruby's static-library dependencies.
+RUN apk add binutils file fortify-headers make musl-dev clang gmp-dev zlib-dev
