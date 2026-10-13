@@ -152,7 +152,8 @@ bundle --version
 # packages while preserving the runtime libraries installed before
 # the checkpoint.
 yum -y history rollback "${yum_checkpoint}"
-yum clean all
+# Keep repository metadata for dependent compiler images.
+yum clean packages
 SHELL
 
 # don't create ".bundle" in all our apps

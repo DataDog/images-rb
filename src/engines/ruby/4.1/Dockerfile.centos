@@ -231,7 +231,8 @@ gem --version
 bundle --version
 
 yum -y history rollback "${yum_checkpoint}"
-yum clean all
+# Keep repository metadata for dependent compiler images.
+yum clean packages
 
 SHELL
 
