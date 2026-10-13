@@ -1,3 +1,5 @@
+# ruby-version-min: 1.8.7
+
 require "minitest/autorun"
 
 # polyfill for Ruby 2.2 and down, used by minitest assertions
