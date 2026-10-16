@@ -1,3 +1,14 @@
 FROM ghcr.io/datadog/images-rb/engines/ruby:4.1-musl
 
-RUN apk add binutils file fortify-headers make musl-dev gcc g++
+RUN apk add \
+    binutils \
+    file \
+    fortify-headers \
+    g++ \
+    gcc \
+    gmp-dev \
+    make \
+    mariadb-connector-c-dev \
+    musl-dev \
+    postgresql-dev \
+    sqlite-dev
