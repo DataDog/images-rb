@@ -1,5 +1,6 @@
 FROM ghcr.io/datadog/images-rb/engines/ruby:4.1-musl
 
+# mkmf configuration probes link against Ruby's static-library dependencies.
 RUN apk add \
     binutils \
     file \
@@ -11,4 +12,5 @@ RUN apk add \
     mariadb-connector-c-dev \
     musl-dev \
     postgresql-dev \
-    sqlite-dev
+    sqlite-dev \
+    zlib-dev

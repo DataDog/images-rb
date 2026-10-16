@@ -1,5 +1,6 @@
 FROM ghcr.io/datadog/images-rb/engines/ruby:4.1-musl
 
+# mkmf configuration probes link against Ruby's static-library dependencies.
 RUN apk add \
     binutils \
     clang \
@@ -12,4 +13,5 @@ RUN apk add \
     musl-dev \
     postgresql-dev \
     sqlite-dev \
+    zlib-dev \
     && ln -s "$(command -v clang)" /usr/local/bin/gcc
