@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+# ruby-version-min: 1.8.7
 
 # @type self: Rake::DSL
 
