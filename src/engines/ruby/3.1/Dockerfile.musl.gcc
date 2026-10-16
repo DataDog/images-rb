@@ -1,4 +1,16 @@
 FROM ghcr.io/datadog/images-rb/engines/ruby:3.1-musl
 
 # mkmf configuration probes link against Ruby's static-library dependencies.
-RUN apk add binutils file fortify-headers make musl-dev gcc g++ gmp-dev zlib-dev
+RUN apk add \
+    binutils \
+    file \
+    fortify-headers \
+    g++ \
+    gcc \
+    gmp-dev \
+    make \
+    mariadb-connector-c-dev \
+    musl-dev \
+    postgresql-dev \
+    sqlite-dev \
+    zlib-dev

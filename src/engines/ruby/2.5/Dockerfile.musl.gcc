@@ -1,4 +1,15 @@
 FROM ghcr.io/datadog/images-rb/engines/ruby:2.5-musl
 
 # Older Ruby records GMP in the linker flags used by native extensions.
-RUN apk add binutils file fortify-headers make musl-dev gcc g++ gmp-dev
+RUN apk add \
+    binutils \
+    file \
+    fortify-headers \
+    g++ \
+    gcc \
+    gmp-dev \
+    make \
+    mariadb-connector-c-dev \
+    musl-dev \
+    postgresql-dev \
+    sqlite-dev
