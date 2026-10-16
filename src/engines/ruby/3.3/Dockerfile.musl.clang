@@ -1,3 +1,14 @@
 FROM ghcr.io/datadog/images-rb/engines/ruby:3.3-musl
 
-RUN apk add binutils file fortify-headers make musl-dev clang
+RUN apk add \
+    binutils \
+    clang \
+    file \
+    fortify-headers \
+    gcc \
+    make \
+    mariadb-connector-c-dev \
+    musl-dev \
+    postgresql-dev \
+    sqlite-dev \
+    && ln -s "$(command -v clang)" /usr/local/bin/gcc
