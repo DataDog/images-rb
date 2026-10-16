@@ -1,0 +1,17 @@
+FROM ghcr.io/datadog/images-rb/engines/ruby:4.1-centos
+
+# Ruby 4.1 needs a newer pg gem, which requires libpq newer than CentOS 7's 9.2.
+RUN yum install -y devtoolset-10-gcc devtoolset-10-gcc-c++ make binutils file patch pkgconfig mariadb-devel rh-postgresql13-postgresql-devel sqlite-devel \
+    && ln -s /opt/rh/rh-postgresql13/root/usr/bin/pg_config /usr/local/bin/pg_config \
+    && echo /opt/rh/rh-postgresql13/root/usr/lib64 > /etc/ld.so.conf.d/postgresql.conf \
+    && ldconfig
+
+RUN printf '%s\n' \
+    '#!/usr/bin/env bash' \
+    'exec /opt/rh/devtoolset-10/root/usr/bin/gcc "$@"' \
+    > /usr/local/bin/gcc \
+    && printf '%s\n' \
+        '#!/usr/bin/env bash' \
+        'exec /opt/rh/devtoolset-10/root/usr/bin/g++ "$@"' \
+        > /usr/local/bin/g++ \
+    && chmod +x /usr/local/bin/gcc /usr/local/bin/g++
