@@ -120,7 +120,8 @@ rm thread-stack-fix.patch
 sed -i 's/transform_mjit_header.rb "$(CC) $(ARCH_FLAG)"/transform_mjit_header.rb "$(CC) $(ARCH_FLAG) $(CFLAGS)"/' common.mk
 
 # Keep the release's configure script and pre-C23 compiler semantics.
-export CFLAGS='-O2 -std=gnu99 -Wno-error=implicit-function-declaration -Wno-error=incompatible-pointer-types'
+# Legacy gems such as sqlite3 1.4.4 rely on implicit integer/pointer conversions.
+export CFLAGS='-O2 -std=gnu99 -Wno-error=implicit-function-declaration -Wno-error=incompatible-pointer-types -Wno-error=int-conversion'
 export LDFLAGS='-Wl,-z,relro,-z,now'
 
 gnuArch="$(gcc -dumpmachine)"
