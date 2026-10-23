@@ -1,3 +1,5 @@
+# platforms: linux/x86_64
+
 FROM ghcr.io/datadog/images-rb/engines/ruby:1.9-centos
 
 RUN yum install -y epel-release \

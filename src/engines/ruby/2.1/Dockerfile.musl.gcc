@@ -1,3 +1,5 @@
+# platforms: linux/x86_64
+
 FROM ghcr.io/datadog/images-rb/engines/ruby:2.1-musl
 
 # Older Ruby records GMP in the linker flags used by native extensions.
