@@ -1,6 +1,5 @@
-# strip-tags: gnu
-
 # platforms: linux/x86_64
+# strip-tags: gnu
 
 # Debian 11 (bullseye)
 FROM public.ecr.aws/docker/library/debian:11

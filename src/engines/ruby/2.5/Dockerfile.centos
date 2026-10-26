@@ -66,9 +66,7 @@ RUN true "${REPRO_RUN_KEY}" && yum makecache -y
 # localedef has been forcefully removed by:
 # rm -rf "$target"/usr/{{lib,share}/locale,{lib,lib64}/gconv,bin/localedef,sbin/build-locale-archive}
 # fun: CentOS 8 has `yum list glibc-langpack-\*` but not CentOS 7 :'(
-# On aarch64, the base image may ship an older glibc than what the altarch
-# repo provides; updating glibc + glibc-common brings in gconv modules that
-# localedef needs to generate the locale.
+# Update glibc and its locale data together so aarch64 gconv modules match.
 RUN <<SHELL
 set -eu
 yum update -y glibc glibc-common
@@ -81,6 +79,7 @@ SHELL
 
 # Install runtime packages only (no compiler or build tools)
 RUN yum install -y curl gettext file zip unzip git
+
 # Skip installing gem documentation
 COPY <<GEMRC /usr/local/etc/gemrc
 install: --no-document
