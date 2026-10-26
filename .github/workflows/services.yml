@@ -1,5 +1,7 @@
 name: Services
 
+# Jitter registry operations to spread bursts from short or cached jobs.
+
 on:
   workflow_call:
     inputs:
@@ -76,6 +78,7 @@ jobs:
       - name: Build single-arch image (x86_64)
         if: ${{ contains(matrix.arch, 'x86_64') }}
         run: |
+          sleep "$(awk -v r="$RANDOM" 'BEGIN { printf "%.6f", 1 + 4 * r / 32767 }')"
           bundle exec rake docker:build['services/${{ matrix.service }}:*'] PLATFORM='linux/x86_64'
 
       # Then, build image for aarch64 which, being emulated under qemu, is slower
@@ -84,10 +87,12 @@ jobs:
       - name: Enable aarch64 emulation (x86_64)
         if: ${{ contains(matrix.arch, 'aarch64') }}
         run: |
+          sleep "$(awk -v r="$RANDOM" 'BEGIN { printf "%.6f", 1 + 4 * r / 32767 }')"
           docker run --privileged --rm tonistiigi/binfmt --install arm64
       - name: Build single-arch image (aarch64)
         if: ${{ contains(matrix.arch, 'aarch64') }}
         run: |
+          sleep "$(awk -v r="$RANDOM" 'BEGIN { printf "%.6f", 1 + 4 * r / 32767 }')"
           bundle exec rake docker:build['services/${{ matrix.service }}:*'] PLATFORM='linux/aarch64'
 
       # Finally, assemble multi-arch image for a combined push to the registry
@@ -95,8 +100,10 @@ jobs:
       # This reruns docker build but layers are in the cache, so it's fast
       - name: Log in to the Container Registry
         run: |
+          sleep "$(awk -v r="$RANDOM" 'BEGIN { printf "%.6f", 1 + 4 * r / 32767 }')"
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
       - name: Push release image (${{ join(matrix.arch, ', ') }})
         if: ${{ inputs.push }}
         run: |
+          sleep "$(awk -v r="$RANDOM" 'BEGIN { printf "%.6f", 1 + 4 * r / 32767 }')"
           bundle exec rake docker:build['services/${{ matrix.service }}:*'] PLATFORM='${{ steps.vars.outputs.DOCKER_PLATFORMS }}' PUSH=true

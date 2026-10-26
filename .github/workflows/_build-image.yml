@@ -1,5 +1,7 @@
 name: Build Image
 
+# Jitter registry operations to spread bursts from short or cached jobs.
+
 on:
   workflow_call:
     inputs:
@@ -162,6 +164,7 @@ jobs:
 
       - name: Log in to the Container Registry
         run: |
+          sleep "$(awk -v r="$RANDOM" 'BEGIN { printf "%.6f", 1 + 4 * r / 32767 }')"
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
 
       # Build and push the single-arch image to the registry.
@@ -186,6 +189,7 @@ jobs:
             build_context+=(--build-context "${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.BASE_RELEASE_TAG }}=docker-image://${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.BASE_RUNID_TAG }}")
           fi
 
+          sleep "$(awk -v r="$RANDOM" 'BEGIN { printf "%.6f", 1 + 4 * r / 32767 }')"
           docker buildx build ${{ steps.vars.outputs.SRC }} \
             "${cache_from[@]}" \
             "${build_context[@]}" \
@@ -206,6 +210,7 @@ jobs:
             build_context+=(--build-context "${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.BASE_RELEASE_TAG }}=docker-image://${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.BASE_RUNID_TAG }}")
           fi
 
+          sleep "$(awk -v r="$RANDOM" 'BEGIN { printf "%.6f", 1 + 4 * r / 32767 }')"
           docker buildx build ${{ steps.vars.outputs.SRC }} \
             "${build_context[@]}" \
             --cache-from=type=registry,ref=${{ steps.vars.outputs.IMAGE }}:${{ steps.vars.outputs.RUNID_TAG }}-${{ matrix.arch }} \
@@ -287,6 +292,7 @@ jobs:
 
       - name: Log in to the Container Registry
         run: |
+          sleep "$(awk -v r="$RANDOM" 'BEGIN { printf "%.6f", 1 + 4 * r / 32767 }')"
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
 
       # Combine the per-arch images and promote all tags in one registry call.
@@ -317,6 +323,7 @@ jobs:
             fi
           done < <(jq -r '.[]' <<< "$ALIAS_TAGS")
 
+          sleep "$(awk -v r="$RANDOM" 'BEGIN { printf "%.6f", 1 + 4 * r / 32767 }')"
           docker buildx imagetools create \
             "${targets[@]}" \
             "${sources[@]}"

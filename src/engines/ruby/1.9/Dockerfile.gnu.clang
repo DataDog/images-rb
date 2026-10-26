@@ -1,0 +1,12 @@
+FROM ghcr.io/datadog/images-rb/engines/ruby:1.9-gnu
+
+RUN apt-get install -y \
+    binutils \
+    file \
+    make \
+    libc6-dev \
+    clang \
+    --no-install-recommends
+
+RUN printf '%s\n' '#!/bin/sh' 'exec clang -fdeclspec "$@"' > /usr/local/bin/gcc \
+    && chmod +x /usr/local/bin/gcc

@@ -1,5 +1,4 @@
 # strip-tags: gnu
-# append-tags: gcc
 
 # Debian 12 (bookworm)
 FROM public.ecr.aws/docker/library/debian:12
@@ -82,11 +81,10 @@ apt-get install -y \
     libreadline-dev \
     libncurses5-dev \
     libffi-dev \
-    libmariadb-dev \
-    libmariadb-dev-compat \
-    libpq-dev \
+    libmariadb3 \
+    libpq5 \
     libssl-dev \
-    libsqlite3-dev \
+    libsqlite3-0 \
     --no-install-recommends
 
 rustArch=
@@ -170,9 +168,14 @@ ruby --version
 gem --version
 bundle --version
 
-# clean up apt lists
-rm -rf /var/lib/apt/lists/*
-
+# Note: --auto-remove is deliberately NOT used because runtime libraries
+# (libyaml, libffi, libssl, etc.) were auto-installed as dependencies of
+# -dev packages and apt has no way to know that Ruby needs them at runtime.
+compiler_packages="$(dpkg-query -W -f='${Package}\n' | grep -E '^(gcc|g\+\+|cpp)(-[0-9]+)?(-[a-z0-9-]+-linux-gnu)?$')"
+apt-get purge -y \
+    $compiler_packages make autoconf bison patch build-essential xz-utils \
+    libc6-dev zlib1g-dev libyaml-dev libgdbm-dev libreadline-dev \
+    libncurses5-dev libncurses-dev libffi-dev libssl-dev
 SHELL
 
 # don't create ".bundle" in all our apps
