@@ -1,0 +1,115 @@
+name: Update Engines
+
+on:
+  schedule:
+    - cron: "23 6 * * *"
+  workflow_dispatch:
+    inputs:
+      engine:
+        description: Engine to update
+        type: choice
+        default: all
+        options:
+          - all
+          - ruby
+          - jruby
+          - truffleruby
+
+permissions: {}
+
+jobs:
+  update:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: ${{ fromJSON(inputs.engine && inputs.engine != 'all' && format('["{0}"]', inputs.engine) || '["ruby", "jruby", "truffleruby"]') }}
+    concurrency:
+      group: update-engines-${{ matrix.engine }}
+      cancel-in-progress: false
+    env:
+      ENGINE: ${{ matrix.engine }}
+      BRANCH: automation/update-${{ matrix.engine }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Check for seed images
+        id: seed
+        run: |
+          if test -d "src/engines/$ENGINE"; then
+            echo 'present=true' >> "$GITHUB_OUTPUT"
+          else
+            echo "$ENGINE: no seed images; skipped" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Set up Ruby
+        if: steps.seed.outputs.present == 'true'
+        uses: ruby/setup-ruby@824c0e29fdfc7d689c191c27acc969d2d04b7dd8 # v1.331.0
+        with:
+          ruby-version: "3.3.5"
+
+      - name: Test updater
+        if: steps.seed.outputs.present == 'true'
+        run: ruby script/test/engine_updates_test.rb
+
+      - name: Update engine recipes
+        if: steps.seed.outputs.present == 'true'
+        id: update
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ruby script/update-engines.rb --engine "$ENGINE" > "$RUNNER_TEMP/engine-update.md"
+          cat "$RUNNER_TEMP/engine-update.md" >> "$GITHUB_STEP_SUMMARY"
+          if test -n "$(git status --porcelain)"; then
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      # An App token also lets the generated push trigger the image builds.
+      - name: Get GitHub token via dd-octo-sts
+        if: steps.update.outputs.changed == 'true'
+        id: generate-token
+        uses: DataDog/dd-octo-sts-action@c85802a58e202b7e764b5441e4378c76043c8108 # v1.0.5
+        with:
+          scope: DataDog/images-rb
+          policy: self.update-engines
+
+      - name: Preserve manual changes on the automation branch
+        if: steps.update.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}
+        run: |
+          head=$(gh api "repos/$GH_REPO/git/matching-refs/heads/$BRANCH" \
+            --jq '.[] | select(.ref == "refs/heads/" + env.BRANCH) | .object.sha')
+          if test -n "$head"; then
+            manual=$(gh api --paginate --slurp "repos/$GH_REPO/compare/main...$head?per_page=100" \
+              --jq '[.[].commits[] | select(.author.type != "Bot" or .committer.type != "Bot")] | length')
+            if test "$manual" -ne 0; then
+              echo "Manual commits found on $BRANCH; reconcile the existing PR before updating." >&2
+              exit 1
+            fi
+          fi
+
+      - name: Create pull request
+        if: steps.update.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ steps.generate-token.outputs.token }}
+          base: main
+          branch: ${{ env.BRANCH }}
+          title: Update ${{ matrix.engine }} releases
+          commit-message: Update ${{ matrix.engine }} releases
+          sign-commits: true
+          body-path: ${{ runner.temp }}/engine-update.md
+          add-paths: |
+            src/engines/${{ matrix.engine }}/
+            gemfiles/${{ matrix.engine }}-*.gemfile
+            .github/workflows/build-ruby.yml
+            .github/workflows/build-ruby-compilers.yml
