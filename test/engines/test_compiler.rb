@@ -5,7 +5,7 @@ require "tmpdir"
 
 class TestCompiler < Minitest::Test
   def setup
-    skip "compiler contract applies to CRuby images" unless ENV["IMAGE_ENGINE"] == "ruby"
+    skip "compiler contract applies to CRuby and TruffleRuby images" unless ["ruby", "truffleruby"].include?(ENV["IMAGE_ENGINE"])
     skip "image variant is unknown" unless ENV.key?("IMAGE_COMPILER")
   end
 
@@ -39,8 +39,8 @@ class TestCompiler < Minitest::Test
     end
   end
 
-  def test_gcc_cpp_compilation
-    skip "GCC image required" unless ENV["IMAGE_COMPILER"] == ".gcc"
+  def test_cpp_compilation
+    skip "C++ compiler image required" unless ENV["IMAGE_COMPILER"] == ".gcc" || (ENV["IMAGE_ENGINE"] == "truffleruby" && ENV["IMAGE_COMPILER"] == ".clang")
 
     Dir.mktmpdir("images-rb-cpp") do |dir|
       source = File.join(dir, "main.cpp")

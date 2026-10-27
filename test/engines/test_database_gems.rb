@@ -9,7 +9,7 @@ class TestDatabaseGems < Minitest::Test
   def setup
     ruby_version = Gem::Version.new(RUBY_VERSION)
     skip "database gem coverage starts at Ruby 2.5" unless Gem::Requirement.new(">= 2.5").satisfied_by?(ruby_version)
-    skip "database gems require CRuby" unless ENV["IMAGE_ENGINE"] == "ruby"
+    skip "database gems require CRuby or TruffleRuby" unless ["ruby", "truffleruby"].include?(ENV["IMAGE_ENGINE"])
     skip "database gems require a compiler image" unless [".gcc", ".clang"].include?(ENV["IMAGE_COMPILER"])
   end
 
