@@ -32,6 +32,7 @@ jobs:
       group: update-engines-${{ matrix.engine }}
       cancel-in-progress: false
     env:
+      BUNDLE_WITHOUT: check:ide
       ENGINE: ${{ matrix.engine }}
       BRANCH: automation/update-${{ matrix.engine }}
       GH_REPO: ${{ github.repository }}
@@ -55,10 +56,11 @@ jobs:
         uses: ruby/setup-ruby@824c0e29fdfc7d689c191c27acc969d2d04b7dd8 # v1.331.0
         with:
           ruby-version: "3.3.5"
+          bundler-cache: true
 
       - name: Test updater
         if: steps.seed.outputs.present == 'true'
-        run: ruby script/test/engine_updates_test.rb
+        run: bundle exec rake engine:test
 
       - name: Update engine recipes
         if: steps.seed.outputs.present == 'true'
@@ -66,7 +68,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          ruby script/update-engines.rb --engine "$ENGINE" > "$RUNNER_TEMP/engine-update.md"
+          bundle exec rake "engine:update[$ENGINE]" > "$RUNNER_TEMP/engine-update.md"
           cat "$RUNNER_TEMP/engine-update.md" >> "$GITHUB_STEP_SUMMARY"
           if test -n "$(git status --porcelain)"; then
             echo 'changed=true' >> "$GITHUB_OUTPUT"

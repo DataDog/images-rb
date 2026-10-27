@@ -42,16 +42,18 @@ Service images are intended to provide known, fixed behaviour for test suites.
 
 ## Updating engine releases
 
-Run the updater with Ruby 3.3 and its bundled libraries, or through the Nix shell:
+Run the updater with Ruby 3.3 or newer and the repository's bundle, or through
+the Nix shell:
 
 ```sh
-nix develop -c ruby script/update-engines.rb --dry-run
-nix develop -c ruby script/update-engines.rb
-nix develop -c ruby script/update-engines.rb --engine jruby
-nix develop -c ruby script/update-engines.rb --dry-run --format json
+nix develop -c bundle install
+nix develop -c rake engine:update DRY_RUN=1
+nix develop -c rake engine:update
+nix develop -c rake 'engine:update[jruby]'
+nix develop -c rake engine:update DRY_RUN=1 FORMAT=json
 ```
 
-The script discovers upstream releases, inventories the checkout, and updates
+The task discovers upstream releases, inventories the checkout, and updates
 each existing series independently. It includes published previews and release
 candidates. Newer minor or major series copy their nearest predecessor's
 Dockerfiles, Gemfile, and build matrix entries. Inherited build dependencies
@@ -65,7 +67,7 @@ Versions and SHA-256 pins change together. TruffleRuby follows Community Native
 Linux assets for both architectures. If an asset has no published digest, the
 updater downloads it and reports a computed content checksum.
 
-Minimum series and exclusions live in `script/engine_updates/plan.rb`. Ruby 1.8
+Minimum series and exclusions live in `tasks/engine/plan.rb`. Ruby 1.8
 retains its manually pinned commit archive. Engines without seed images are
 reported and skipped when checking all engines; selecting one explicitly fails.
 An optional `GH_TOKEN` or `GITHUB_TOKEN` increases GitHub API limits locally.
@@ -85,5 +87,5 @@ TruffleRuby checks start automatically once its seed images are present.
 Host-side updater tests are separate from the historical-runtime image tests:
 
 ```sh
-nix develop -c ruby script/test/engine_updates_test.rb
+nix develop -c rake engine:test
 ```

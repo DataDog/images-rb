@@ -4,7 +4,8 @@ require "minitest/autorun"
 require "minitest/mock"
 require "tmpdir"
 require "stringio"
-require_relative "../update-engines"
+require "rake"
+require_relative "../update"
 
 class EngineUpdatesTest < Minitest::Test
   include EngineUpdates
@@ -243,35 +244,83 @@ class EngineUpdatesTest < Minitest::Test
     assert_includes read(path), "# Local edit"
   end
 
-  def test_cli_dry_run_and_apply_share_the_same_plan
+  def test_dry_run_and_apply_share_the_same_plan
     seed("ruby", "3.4.7", ["gnu"])
     responses = {Upstream::CRuby::INDEX => fixture("ruby-index.txt")}
     before = snapshot
     out = StringIO.new
-    status = CLI.run(%w[--dry-run --format json], root: @root, out: out, http: HTTPFixture.new(responses))
-    assert_equal 0, status
+    EngineUpdates.update(dry_run: true, format: "json", root: @root, out: out, http: HTTPFixture.new(responses))
     assert_equal before, snapshot
     result = JSON.parse(out.string)
     assert_equal %w[3.4.8 4.1.0-rc1], result.fetch("changes").map { |change| change.fetch("to") }
     assert_includes result.fetch("notes"), "truffleruby: no seed series; skipped"
 
     out = StringIO.new
-    assert_equal 0, CLI.run(%w[--format json], root: @root, out: out, http: HTTPFixture.new(responses))
+    EngineUpdates.update(format: "json", root: @root, out: out, http: HTTPFixture.new(responses))
     assert_equal result, JSON.parse(out.string)
     refute_equal before, snapshot
   end
 
-  def test_cli_reports_network_failure_and_explicit_missing_engine
+  def test_update_reports_network_failure_and_explicit_missing_engine
     seed("ruby", "3.4.7", ["gnu"])
     before = snapshot
-    err = StringIO.new
-    assert_equal 1, CLI.run([], root: @root, err: err, http: HTTPFixture.new)
-    assert_match(/Unexpected request/, err.string)
+    error = assert_raises(Error) { EngineUpdates.update(root: @root, http: HTTPFixture.new) }
+    assert_match(/Unexpected request/, error.message)
     assert_equal before, snapshot
-    assert_equal 1, CLI.run(%w[--engine truffleruby], root: @root, err: StringIO.new, http: HTTPFixture.new)
+    assert_raises(Error) { EngineUpdates.update(engine: "truffleruby", root: @root, http: HTTPFixture.new) }
+  end
+
+  def test_rake_task_selects_engine_and_honours_dry_run_and_json
+    seed("jruby", "10.0.2.0", %w[gnu musl])
+    url = "#{Upstream::JRuby::ROOT}/10.0.3.0/jruby-dist-10.0.3.0-bin.tar.gz.sha256"
+    metadata = fixture("jruby-metadata.xml").sub(/<version>10\.1.*?<\/versions>/m, "</versions>")
+    http = HTTPFixture.new("#{Upstream::JRuby::ROOT}/maven-metadata.xml" => metadata, url => "a" * 64)
+    before = snapshot
+    options = nil
+    update = EngineUpdates.method(:update)
+    capture = lambda do |**arguments|
+      options = arguments
+      update.call(**arguments, root: @root, http: http)
+    end
+    with_task_environment("DRY_RUN" => "1", "FORMAT" => "json") do
+      EngineUpdates.stub(:update, capture) do
+        out, = capture_io { Rake::Task["engine:update"].invoke("jruby") }
+        assert_equal ["10.0.3.0"], JSON.parse(out).fetch("changes").map { |change| change.fetch("to") }
+      end
+    end
+    assert_equal({engine: "jruby", dry_run: true, format: "json"}, options)
+    assert_equal before, snapshot
+  end
+
+  def test_rake_task_defaults_and_rejects_invalid_options
+    options = nil
+    with_task_environment do
+      EngineUpdates.stub(:update, ->(**arguments) { options = arguments }) { Rake::Task["engine:update"].invoke }
+    end
+    assert_equal({engine: nil, dry_run: false, format: "text"}, options)
+    with_task_environment("DRY_RUN" => "yes") do
+      assert_raises(ArgumentError) { Rake::Task["engine:update"].invoke }
+    end
+    with_task_environment do
+      assert_raises(ArgumentError) { Rake::Task["engine:update"].invoke("ruby", "jruby") }
+    end
+    assert_raises(Error) { EngineUpdates.update(engine: "unknown", root: @root, http: HTTPFixture.new) }
+    assert_raises(Error) { EngineUpdates.update(format: "unknown", root: @root, http: HTTPFixture.new) }
   end
 
   private
+
+  def with_task_environment(values = {})
+    application = Rake.application
+    previous = %w[DRY_RUN FORMAT].to_h { |name| [name, ENV[name]] }
+    Rake.application = Rake::Application.new
+    previous.each_key { |name| ENV[name] = values[name] }
+    load File.expand_path("../../engine.rake", __dir__)
+    yield
+  ensure
+    previous.each { |name, value| ENV[name] = value }
+    Rake.application = application
+  end
 
   def response(body)
     response = Net::HTTPOK.new("1.1", "200", "OK")
