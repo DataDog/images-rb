@@ -253,9 +253,9 @@ jobs:
             *) docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -rfiddle -e 'puts Fiddle::SIZEOF_VOIDP' ;;
           esac
           docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -rzlib -e 'puts Zlib.zlib_version'
-          # gdbm was removed from Ruby's bundled gems in 3.1; not available in JRuby (C extension)
+          # gdbm is absent from modern Ruby and TruffleRuby distributions, and from JRuby.
           case "${{ inputs.engine }}:${{ inputs.version }}" in
-            jruby:*|ruby:3.[1-9]*|ruby:[4-9]*) : ;;
+            jruby:*|truffleruby:*|ruby:3.[1-9]*|ruby:[4-9]*) : ;;
             *) docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -rgdbm -e 'puts GDBM::VERSION' ;;
           esac
           # io/console not available in Ruby 1.8

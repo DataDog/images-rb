@@ -26,7 +26,7 @@ Supported engines include:
 
 - `ruby`: MRI a.k.a CRuby.
 - `jruby`: These are based on Eclipse Temurin JDK builds.
-- `truffleruby`: Due to the nature and state of TruffleRuby, these are experimental and may or may not work as expected.
+- `truffleruby`: Community Native builds. The `40.0` series targets Ruby 4.0 and provides glibc-based runtime, GCC, and Clang images for `x86_64` and `aarch64`.
 
 Tag naming acts as a contract and conveys intended usage:
 
