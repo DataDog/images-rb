@@ -2,6 +2,7 @@ name: Build Ruby Compilers
 
 permissions:
   contents: read
+  id-token: write
   packages: write
 
 on:

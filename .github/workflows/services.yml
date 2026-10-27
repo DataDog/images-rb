@@ -43,6 +43,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
+      id-token: write
       packages: write
     name: Build (${{ matrix.service }})
     steps:
@@ -72,6 +73,19 @@ jobs:
         id: vars
         run: |
           echo "DOCKER_PLATFORMS=$(echo ${{ join(matrix.arch) }} | tr ',' '\n' | sed 's/^/linux\//' | paste -s -d, -)" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
+        with:
+          role-to-assume: ${{ vars.AWS_ECR_PUBLIC_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Log in to Amazon ECR Public
+        shell: bash
+        run: |
+          sleep "$(awk -v r="$RANDOM" 'BEGIN { printf "%.6f", 1 + 4 * r / 32767 }')"
+          aws ecr-public get-login-password --region us-east-1 |
+            docker login --username AWS --password-stdin public.ecr.aws
 
       # First, build image for x86_64 as it will fail fast
       #

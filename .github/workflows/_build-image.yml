@@ -94,6 +94,7 @@ jobs:
     runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
     permissions:
       contents: read
+      id-token: write
       packages: write
     name: Build (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}, ${{ matrix.arch }})
     steps:
@@ -113,6 +114,22 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 20
+
+      # Compiler variants consume this run's GHCR base image.
+      - name: Configure AWS credentials
+        if: ${{ inputs.dockerfile_suffix == '' }}
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
+        with:
+          role-to-assume: ${{ vars.AWS_ECR_PUBLIC_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Log in to Amazon ECR Public
+        if: ${{ inputs.dockerfile_suffix == '' }}
+        shell: bash
+        run: |
+          sleep "$(awk -v r="$RANDOM" 'BEGIN { printf "%.6f", 1 + 4 * r / 32767 }')"
+          aws ecr-public get-login-password --region us-east-1 |
+            docker login --username AWS --password-stdin public.ecr.aws
 
       # Variables:
       #   SRC                = src/engines/{engine}/{version}                   # build context directory
