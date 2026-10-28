@@ -39,3 +39,9 @@ Tag naming acts as a contract and conveys intended usage:
 Directory: `src/services`
 
 Service images are intended to provide known, fixed behaviour for test suites.
+
+## CI registry authentication
+
+Image builds authenticate to Amazon ECR Public using GitHub OIDC. See
+[ECR Public authentication](docs/ecr-public-auth.md) for the AWS role and
+repository-variable setup required before running CI.

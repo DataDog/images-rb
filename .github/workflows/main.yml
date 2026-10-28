@@ -17,22 +17,40 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  configuration:
+    name: Check CI configuration
+    runs-on: ubuntu-24.04
+    permissions: {}
+    steps:
+      - name: Check ECR Public role
+        env:
+          AWS_ECR_PUBLIC_ROLE_ARN: ${{ vars.AWS_ECR_PUBLIC_ROLE_ARN }}
+        run: |
+          if [ -z "$AWS_ECR_PUBLIC_ROLE_ARN" ]; then
+            echo "::error::Set the AWS_ECR_PUBLIC_ROLE_ARN repository variable; see docs/ecr-public-auth.md."
+            exit 1
+          fi
+
   services:
     name: Services
+    needs: configuration
     uses: ./.github/workflows/services.yml
     with:
       push: ${{ github.event_name == 'workflow_dispatch' && inputs.push && github.ref == 'refs/heads/main' }}
     permissions:
       contents: read
+      id-token: write
       packages: write
 
   ruby:
     name: Ruby
+    needs: configuration
     uses: ./.github/workflows/ruby.yml
     with:
       push: ${{ github.event_name == 'workflow_dispatch' && inputs.push && github.ref == 'refs/heads/main' }}
     permissions:
       contents: read
+      id-token: write
       packages: write
 
   nix:

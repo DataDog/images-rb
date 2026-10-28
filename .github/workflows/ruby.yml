@@ -2,6 +2,7 @@ name: Ruby
 
 permissions:
   contents: read
+  id-token: write
   packages: write
 
 on:
