@@ -1,0 +1,41 @@
+name: Test Engine Updater
+
+on:
+  push:
+    paths:
+      - tasks/engine.rake
+      - tasks/engine/**
+      - Rakefile
+      - Gemfile
+      - gemfiles/ruby-3.3.gemfile
+      - .github/workflows/test-engine-updates.yml
+      - .github/workflows/update-engines.yml
+      - .github/chainguard/self.update-engines.sts.yaml
+  pull_request:
+    paths:
+      - tasks/engine.rake
+      - tasks/engine/**
+      - Rakefile
+      - Gemfile
+      - gemfiles/ruby-3.3.gemfile
+      - .github/workflows/test-engine-updates.yml
+      - .github/workflows/update-engines.yml
+      - .github/chainguard/self.update-engines.sts.yaml
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    env:
+      BUNDLE_WITHOUT: check:ide
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@824c0e29fdfc7d689c191c27acc969d2d04b7dd8 # v1.331.0
+        with:
+          ruby-version: "3.3.5"
+          bundler-cache: true
+      - run: bundle exec rake engine:test

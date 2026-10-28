@@ -39,3 +39,53 @@ Tag naming acts as a contract and conveys intended usage:
 Directory: `src/services`
 
 Service images are intended to provide known, fixed behaviour for test suites.
+
+## Updating engine releases
+
+Run the updater with Ruby 3.3 or newer and the repository's bundle, or through
+the Nix shell:
+
+```sh
+nix develop -c bundle install
+nix develop -c rake engine:update DRY_RUN=1
+nix develop -c rake engine:update
+nix develop -c rake 'engine:update[jruby]'
+nix develop -c rake engine:update DRY_RUN=1 FORMAT=json
+```
+
+The task discovers upstream releases, inventories the checkout, and updates
+each existing series independently. It includes published previews and release
+candidates. Newer minor or major series copy their nearest predecessor's
+Dockerfiles, Gemfile, and build matrix entries. Inherited build dependencies
+and patches are a best-effort starting point; image CI checks compatibility.
+Missing historical series are not backfilled.
+
+Sources are Ruby's [archive index](https://cache.ruby-lang.org/pub/ruby/index.txt),
+JRuby's [Maven metadata](https://repo1.maven.org/maven2/org/jruby/jruby-dist/maven-metadata.xml),
+and TruffleRuby's [GitHub releases](https://github.com/truffleruby/truffleruby/releases).
+Versions and SHA-256 pins change together. TruffleRuby follows Community Native
+Linux assets for both architectures. If an asset has no published digest, the
+updater downloads it and reports a computed content checksum.
+
+Minimum series and exclusions live in `tasks/engine/plan.rb`. Ruby 1.8
+retains its manually pinned commit archive. Engines without seed images are
+reported and skipped when checking all engines; selecting one explicitly fails.
+An optional `GH_TOKEN` or `GITHUB_TOKEN` increases GitHub API limits locally.
+
+The **Update Engines** workflow runs daily and can be dispatched from `main`
+for one engine or all engines. It uses `dd-octo-sts` with the
+`self.update-engines` trust policy to open or refresh one PR per engine on
+`automation/update-<engine>`. The App token allows these pushes to trigger
+normal image CI. Manual commits on an automation branch stop further bot
+updates until reconciled. Changes are never merged automatically.
+
+The workflow and trust policy must be merged before the first scheduled or
+manual run. The STS App needs repository access with contents, pull-request,
+and workflow write permissions, since new series change the build matrices.
+TruffleRuby checks start automatically once its seed images are present.
+
+Host-side updater tests are separate from the historical-runtime image tests:
+
+```sh
+nix develop -c rake engine:test
+```
