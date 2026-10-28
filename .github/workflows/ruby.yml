@@ -13,6 +13,19 @@ on:
         default: false
 
 jobs:
+  asan:
+    uses: ./.github/workflows/_build-image.yml
+    with:
+      engine: ruby
+      version: "3.4"
+      libc: gnu
+      variant: asan
+      compiler: ".clang"
+      sanitizer: address
+      arch: '["x86_64", "aarch64"]'
+      push: ${{ inputs.push }}
+    secrets: inherit
+
   # Stage 1: Build all base images (gnu, musl, centos)
   base:
     uses: ./.github/workflows/build-ruby.yml
