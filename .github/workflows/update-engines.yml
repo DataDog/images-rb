@@ -5,15 +5,18 @@ on:
     - cron: "23 6 * * *"
   workflow_dispatch:
     inputs:
-      engine:
-        description: Engine to update
-        type: choice
-        default: all
-        options:
-          - all
-          - ruby
-          - jruby
-          - truffleruby
+      ruby:
+        description: Update CRuby
+        type: boolean
+        default: true
+      jruby:
+        description: Update JRuby
+        type: boolean
+        default: true
+      truffleruby:
+        description: Update TruffleRuby
+        type: boolean
+        default: true
 
 permissions: {}
 
@@ -27,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        engine: ${{ fromJSON(inputs.engine && inputs.engine != 'all' && format('["{0}"]', inputs.engine) || '["ruby", "jruby", "truffleruby"]') }}
+        engine: [ruby, jruby, truffleruby]
     concurrency:
       group: update-engines-${{ matrix.engine }}
       cancel-in-progress: false
@@ -43,6 +46,7 @@ jobs:
           persist-credentials: false
 
       - name: Check for seed images
+        if: github.event_name == 'schedule' || inputs[matrix.engine]
         id: seed
         run: |
           if test -d "src/engines/$ENGINE"; then

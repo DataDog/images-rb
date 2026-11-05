@@ -72,9 +72,10 @@ retains its manually pinned commit archive. Engines without seed images are
 reported and skipped when checking all engines; selecting one explicitly fails.
 An optional `GH_TOKEN` or `GITHUB_TOKEN` increases GitHub API limits locally.
 
-The **Update Engines** workflow runs daily and can be dispatched from `main`
-for one engine or all engines. It uses `dd-octo-sts` with the
-`self.update-engines` trust policy to open or refresh one PR per engine on
+The **Update Engines** workflow checks all engines daily and can be dispatched
+from `main` with independent CRuby, JRuby, and TruffleRuby checkboxes. All are
+selected by default; uncheck engines to update any subset. It uses `dd-octo-sts`
+with the `self.update-engines` trust policy to open or refresh one PR per engine on
 `automation/update-<engine>`. The App token allows these pushes to trigger
 normal image CI. Manual commits on an automation branch stop further bot
 updates until reconciled. Changes are never merged automatically.
