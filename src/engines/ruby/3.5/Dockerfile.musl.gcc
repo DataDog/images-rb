@@ -11,6 +11,9 @@ RUN apk add \
     make \
     mariadb-connector-c-dev \
     musl-dev \
+    libffi-dev \
+    openssl-dev \
+    yaml-dev \
     postgresql-dev \
     sqlite-dev \
     zlib-dev

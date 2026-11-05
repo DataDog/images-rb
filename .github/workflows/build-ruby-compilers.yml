@@ -97,6 +97,10 @@ jobs:
             version: "4.1"
             libc: gnu
             arch: ["x86_64", "aarch64"]
+          - engine: truffleruby
+            version: "40.0"
+            libc: gnu
+            arch: ["x86_64", "aarch64"]
           # musl
           - engine: ruby
             version: "2.1"

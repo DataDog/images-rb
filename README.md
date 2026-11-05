@@ -26,13 +26,21 @@ Supported engines include:
 
 - `ruby`: MRI a.k.a CRuby.
 - `jruby`: These are based on Eclipse Temurin JDK builds.
-- `truffleruby`: Due to the nature and state of TruffleRuby, these are experimental and may or may not work as expected.
+- `truffleruby`: Community Native builds. The `40.0` series targets Ruby 4.0 and provides glibc-based runtime, GCC, and Clang images for `x86_64` and `aarch64`.
 
 Tag naming acts as a contract and conveys intended usage:
 
 - If you expect a compiler, use `-gcc` or `-clang` tags; images without this do not guarantee presence of a compiler.
 - If you expect a certain libc (variant or version), use the appropriate `-musl`, `-gnu` (glibc), or `-centos` (old glibc) tags.
 - "Naked" version tags give you that specific runtime, but assume no specific Linux distribution, libc version or variant, and no compiler.
+
+GNU engine images use HTTPS for APT repositories, with certificate and package
+signature verification enabled. CA certificates are bootstrapped with download
+retries disabled to mitigate [CVE-2026-109518][apt-cve]. Supported releases upgrade
+APT before restoring retries; Debian 11 keeps retries disabled because its
+archived APT is unpatched. Compiler variants inherit these settings.
+
+[apt-cve]: https://security-tracker.debian.org/tracker/CVE-2026-109518
 
 ### Services
 
