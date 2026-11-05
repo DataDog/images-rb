@@ -4,12 +4,20 @@ FROM public.ecr.aws/docker/library/debian:13
 
 ARG REPRO_RUN_KEY=0
 
-RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
+# Disable retries until APT is patched against CVE-2026-109518.
+RUN echo 'Acquire::Retries "0";' > /etc/apt/apt.conf.d/80-retries
 
 # Retain the package index for compiler layers; refresh it through REPRO_RUN_KEY.
-RUN true "${REPRO_RUN_KEY}" && apt-get update
+RUN true "${REPRO_RUN_KEY}" && \
+    apt-get update && \
+    apt-get install -y ca-certificates --no-install-recommends && \
+    find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) \
+        -exec sed -i 's|http://|https://|g' {} + && \
+    apt-get update && \
+    apt-get install -y --only-upgrade apt && \
+    dpkg --compare-versions "$(dpkg-query -W -f='${Version}' apt)" ge 3.0.4 && \
+    echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
 RUN apt-get install -y \
-    ca-certificates \
     curl \
     git \
     locales \
