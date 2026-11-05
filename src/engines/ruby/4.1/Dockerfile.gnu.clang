@@ -5,6 +5,10 @@ RUN apt-get install -y \
     file \
     make \
     libc6-dev \
+    libffi-dev \
+    libssl-dev \
+    libyaml-dev \
+    zlib1g-dev \
     libmariadb-dev \
     libmariadb-dev-compat \
     libpq-dev \
