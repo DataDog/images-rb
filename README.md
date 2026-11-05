@@ -34,6 +34,14 @@ Tag naming acts as a contract and conveys intended usage:
 - If you expect a certain libc (variant or version), use the appropriate `-musl`, `-gnu` (glibc), or `-centos` (old glibc) tags.
 - "Naked" version tags give you that specific runtime, but assume no specific Linux distribution, libc version or variant, and no compiler.
 
+GNU engine images use HTTPS for APT repositories, with certificate and package
+signature verification enabled. CA certificates are bootstrapped with download
+retries disabled to mitigate [CVE-2026-109518][apt-cve]. Supported releases upgrade
+APT before restoring retries; Debian 11 keeps retries disabled because its
+archived APT is unpatched. Compiler variants inherit these settings.
+
+[apt-cve]: https://security-tracker.debian.org/tracker/CVE-2026-109518
+
 ### Services
 
 Directory: `src/services`
