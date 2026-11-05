@@ -2,4 +2,4 @@
 
 FROM ghcr.io/datadog/images-rb/engines/ruby:2.0-centos
 
-RUN yum install -y gcc gcc-c++ make binutils file patch
+RUN yum install -y gcc gcc-c++ make binutils file patch libffi-devel libyaml-devel openssl-devel zlib-devel
