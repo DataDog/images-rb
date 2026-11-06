@@ -148,6 +148,28 @@ cd /usr/src/ruby
 } > file.c.new
 mv file.c.new file.c
 
+# Backport Ruby 2.1's receiver-local library-directory lookup for extconf.rb.
+patch -p1 <<'PATCH'
+--- a/lib/mkmf.rb
++++ b/lib/mkmf.rb
+@@ -1672,1 +1672,1 @@
+-    $arg_config.last[1] ||= "${#{target}-dir}/#{@libdir_basename}"
++    $arg_config.last[1] ||= "${#{target}-dir}/#{_libdir_basename}"
+@@ -1689,1 +1689,1 @@
+-      ldirs.concat(defaults.collect {|d| "#{d}/#{@libdir_basename}"})
++      ldirs.concat(defaults.collect {|d| "#{d}/#{_libdir_basename}"})
+@@ -2375,2 +2375,0 @@
+-    @libdir_basename = config["libdir"] && config["libdir"][/\A\$\(exec_prefix\)\/(.*)/, 1] or "lib"
+-
+@@ -2401,1 +2399,6 @@
++  def _libdir_basename
++    @libdir_basename ||= config_string("libdir") {|name| name[/\A\$\(exec_prefix\)\/(.*)/, 1]} || "lib"
++  end
++  private :_libdir_basename
++
+   def MAIN_DOES_NOTHING(*refs)
+PATCH
+
 autoconf
 
 gnuArch="$(gcc -dumpmachine)"
