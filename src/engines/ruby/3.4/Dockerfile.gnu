@@ -25,14 +25,22 @@ FROM public.ecr.aws/docker/library/debian:12
 # results.
 ARG REPRO_RUN_KEY=0
 
-# Configure apt retries to improve automation reliability
-RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
+# Disable retries until APT is patched against CVE-2026-109518.
+RUN echo 'Acquire::Retries "0";' > /etc/apt/apt.conf.d/80-retries
 
 # `apt-get update` is uncontrolled and fetches whatever is today's index.
 # For the sake of reproducibility subsequent steps (including in dependent
 # images) should not do `apt-get update`, instead this base image should be
 # updated by changing the `REPRO_RUN_KEY`.
-RUN true "${REPRO_RUN_KEY}" && apt-get update
+RUN true "${REPRO_RUN_KEY}" && \
+    apt-get update && \
+    apt-get install -y ca-certificates --no-install-recommends && \
+    find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) \
+        -exec sed -i 's|http://|https://|g' {} + && \
+    apt-get update && \
+    apt-get install -y --only-upgrade apt && \
+    dpkg --compare-versions "$(dpkg-query -W -f='${Version}' apt)" ge 2.6.2 && \
+    echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
 
 # Install locale and timezone support first
 RUN apt-get install -y locales tzdata --no-install-recommends
@@ -52,8 +60,8 @@ GEMRC
 ENV LANG="en_US.UTF-8"                                                                      \
     LANGUAGE="en_US:en"                                                                     \
     RUBY_MAJOR="3.4"                                                                        \
-    RUBY_VERSION="3.4.7"                                                                    \
-    RUBY_DOWNLOAD_SHA256="db425a86f6e07546957578f4946cc700a91e7fd51115a86c56e096f30e0530c7"
+    RUBY_VERSION="3.4.12"                                                                    \
+    RUBY_DOWNLOAD_SHA256="db6c147940d7ad0b706823d42c8e6713c36dec70a1f83f635f1d3a7f0599ec90"
 
 # - Compile Ruby with `--disable-shared`
 # - Update gem version
@@ -63,7 +71,6 @@ set -eux
 
 apt-get install -y \
     curl \
-    ca-certificates \
     gcc \
     g++ \
     make \

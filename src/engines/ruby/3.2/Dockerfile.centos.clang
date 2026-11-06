@@ -1,7 +1,7 @@
 FROM ghcr.io/datadog/images-rb/engines/ruby:3.2-centos
 
 RUN yum install -y epel-release \
-    && yum install -y gcc clang make binutils file patch pkgconfig mariadb-devel postgresql-devel sqlite-devel \
+    && yum install -y gcc clang make binutils file patch libffi-devel libyaml-devel openssl-devel zlib-devel pkgconfig mariadb-devel postgresql-devel sqlite-devel \
     && printf '%s\n' \
         '#!/bin/bash' \
         'gcc_dir="$(dirname "$(/usr/bin/gcc -print-file-name=crtbegin.o)")"' \

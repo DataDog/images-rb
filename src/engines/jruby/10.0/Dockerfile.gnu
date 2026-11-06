@@ -1,7 +1,7 @@
 # strip-tags: gnu
 # append-tags: gcc
 
-FROM eclipse-temurin:22-jammy AS jruby-10.0.0.1-jre22
+FROM eclipse-temurin:22-jammy AS jruby-10.0.8.0-jre22
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
 # variability: an identical command would be the same from `docker build`'s
@@ -25,14 +25,22 @@ FROM eclipse-temurin:22-jammy AS jruby-10.0.0.1-jre22
 # results.
 ARG REPRO_RUN_KEY=0
 
-# Configure apt retries to improve automation reliability
-RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
+# Disable retries until APT is patched against CVE-2026-109518.
+RUN echo 'Acquire::Retries "0";' > /etc/apt/apt.conf.d/80-retries
 
 # `apt-get update` is uncontrolled and fetches whatever is today's index.
 # For the sake of reproducibility subsequent steps (including in dependent
 # images) should not do `apt-get update`, instead this base image should be
 # updated by changing the `REPRO_RUN_KEY`.
-RUN true "${REPRO_RUN_KEY}" && apt-get update
+RUN true "${REPRO_RUN_KEY}" && \
+    apt-get update && \
+    apt-get install -y ca-certificates --no-install-recommends && \
+    find /etc/apt -type f \( -name '*.list' -o -name '*.sources' \) \
+        -exec sed -i 's|http://|https://|g' {} + && \
+    apt-get update && \
+    apt-get install -y --only-upgrade apt && \
+    dpkg --compare-versions "$(dpkg-query -W -f='${Version}' apt)" ge 2.4.15ubuntu0.1 && \
+    echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
 
 # Install system dependencies for building
 RUN apt-get install -y libc6-dev build-essential git locales tzdata curl --no-install-recommends && rm -rf /var/lib/apt/lists/*
@@ -45,8 +53,8 @@ ENV LANGUAGE=en_US:en
 RUN ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime
 
 # Install JRuby, pinned for reproducibility
-ENV JRUBY_VERSION=10.0.2.0
-ENV JRUBY_SHA256=b8a026f38aa98461a04ed0aa0b20891ce257ecbe53e124719ce9ee5b804525f1
+ENV JRUBY_VERSION=10.0.8.0
+ENV JRUBY_SHA256=e33cd86d198d695bd67dc867daf4c31bced385a9f138a00c47f7c12aa1f4e789
 RUN mkdir /opt/jruby \
     && curl -fSL https://repo1.maven.org/maven2/org/jruby/jruby-dist/${JRUBY_VERSION}/jruby-dist-${JRUBY_VERSION}-bin.tar.gz -o /tmp/jruby.tar.gz \
     && echo "$JRUBY_SHA256 /tmp/jruby.tar.gz" | sha256sum -c - \

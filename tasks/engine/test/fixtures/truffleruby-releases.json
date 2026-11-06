@@ -1,0 +1,23 @@
+[
+  {
+    "tag_name": "graal-40.0.1",
+    "draft": false,
+    "prerelease": false,
+    "assets": [
+      {"name": "truffleruby-community-40.0.1-linux-amd64.tar.gz", "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+      {"name": "truffleruby-community-40.0.1-linux-aarch64.tar.gz", "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+      {"name": "truffleruby-40.0.1-linux-amd64.tar.gz", "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
+    ]
+  },
+  {
+    "tag_name": "graal-41.0.0-rc1",
+    "draft": false,
+    "prerelease": true,
+    "assets": [
+      {"name": "truffleruby-community-41.0.0-rc1-linux-amd64.tar.gz", "digest": null},
+      {"name": "truffleruby-community-41.0.0-rc1-linux-aarch64.tar.gz", "digest": null}
+    ]
+  },
+  {"tag_name": "graal-42.0.0", "draft": true, "prerelease": false, "assets": []},
+  {"tag_name": "nightly", "draft": false, "prerelease": true, "assets": []}
+]

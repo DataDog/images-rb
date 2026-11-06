@@ -1,0 +1,12 @@
+issuer: https://token.actions.githubusercontent.com
+subject: repo:DataDog/images-rb:ref:refs/heads/main
+
+claim_pattern:
+  event_name: '^(schedule|workflow_dispatch)$'
+  repository: '^DataDog/images-rb$'
+  job_workflow_ref: '^DataDog/images-rb/\.github/workflows/update-engines\.yml@refs/heads/main$'
+
+permissions:
+  contents: write
+  pull_requests: write
+  workflows: write

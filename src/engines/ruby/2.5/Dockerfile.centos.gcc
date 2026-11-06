@@ -1,6 +1,6 @@
 FROM ghcr.io/datadog/images-rb/engines/ruby:2.5-centos
 
-RUN yum install -y gcc gcc-c++ make binutils file patch pkgconfig mariadb-devel postgresql-devel sqlite-devel
+RUN yum install -y gcc gcc-c++ make binutils file patch libffi-devel libyaml-devel openssl-devel zlib-devel pkgconfig mariadb-devel postgresql-devel sqlite-devel
 
 RUN printf '%s\n' \
     '#!/usr/bin/env bash' \
