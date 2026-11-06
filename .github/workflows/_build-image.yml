@@ -14,6 +14,21 @@ on:
       libc:
         required: true
         type: string
+      variant:
+        description: Dockerfile and tag variant, defaults to libc
+        required: false
+        type: string
+        default: ""
+      compiler:
+        description: Compiler identity for tests, defaults to dockerfile_suffix
+        required: false
+        type: string
+        default: ""
+      sanitizer:
+        description: Sanitiser identity for tests
+        required: false
+        type: string
+        default: ""
       arch:
         required: true
         type: string # JSON array: '["x86_64", "aarch64"]' or '["x86_64"]'
@@ -22,11 +37,12 @@ on:
         type: boolean
         default: false
       # For building variant Dockerfiles (e.g. .gcc, .clang)
-      # Dockerfile used: Dockerfile.{libc}{dockerfile_suffix}
+      # Variant defaults to libc (gnu, musl, centos).
+      # Dockerfile used: Dockerfile.{variant}{dockerfile_suffix}
       # Tags produced:
-      #   RUNID_TAG:   {version}-{libc}{tag_suffix}-gha{run_id}-g{sha}  (per-run, unique)
-      #   COMMIT_TAG:  {version}-{libc}{tag_suffix}-g{sha}              (per-commit, promoted)
-      #   RELEASE_TAG: {version}-{libc}{tag_suffix}                     (release, promoted)
+      #   RUNID_TAG:   {version}-{variant}{tag_suffix}-gha{run_id}-g{sha}  (per-run, unique)
+      #   COMMIT_TAG:  {version}-{variant}{tag_suffix}-g{sha}              (per-commit, promoted)
+      #   RELEASE_TAG: {version}-{variant}{tag_suffix}                     (release, promoted)
       dockerfile_suffix:
         required: false
         type: string
@@ -42,7 +58,7 @@ env:
 
 jobs:
   alias:
-    name: Alias (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }})
+    name: Alias (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.variant || inputs.libc }}${{ inputs.tag_suffix }})
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -57,8 +73,8 @@ jobs:
       - name: Derive alias tags
         id: aliases
         env:
-          DOCKERFILE: src/engines/${{ inputs.engine }}/${{ inputs.version }}/Dockerfile.${{ inputs.libc }}${{ inputs.dockerfile_suffix }}
-          RELEASE_TAG: ${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}
+          DOCKERFILE: src/engines/${{ inputs.engine }}/${{ inputs.version }}/Dockerfile.${{ inputs.variant || inputs.libc }}${{ inputs.dockerfile_suffix }}
+          RELEASE_TAG: ${{ inputs.version }}-${{ inputs.variant || inputs.libc }}${{ inputs.tag_suffix }}
         run: |
           strip_tags=()
           append_tags=()
@@ -95,7 +111,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    name: Build (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}, ${{ matrix.arch }})
+    name: Build (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.variant || inputs.libc }}${{ inputs.tag_suffix }}, ${{ matrix.arch }})
     steps:
       - name: Set up Docker
         uses: crazy-max/ghaction-setup-docker@7ec28a010822b4626af4874f9448a4b05ac6f3e5 # v5.6.0
@@ -117,12 +133,12 @@ jobs:
       # Variables:
       #   SRC                = src/engines/{engine}/{version}                   # build context directory
       #   IMAGE              = {registry}/{repo}/engines/{engine}               # image name (without tag)
-      #   DOCKERFILE         = SRC/Dockerfile.{libc}{dockerfile_suffix}         # e.g. .../Dockerfile.musl.gcc
+      #   DOCKERFILE         = SRC/Dockerfile.{variant}{dockerfile_suffix}      # e.g. .../Dockerfile.musl.gcc
       #   REPRO_RUN_KEY      = contents of .repro_run_key                       # cache-busting key for non-reproducible steps
       #   SOURCE_DATE_EPOCH  = 315532800                                        # 1980-01-01 00:00:00 UTC, for reproducible builds
       #
       # Tag derivation:
-      #   BASE_RELEASE_TAG = {version}-{libc}                                   # 4.0-musl
+      #   BASE_RELEASE_TAG = {version}-{variant}                                # 4.0-musl
       #   ├─ BASE_COMMIT_TAG  = BASE_RELEASE_TAG-g{sha}                         # 4.0-musl-gabcdef
       #   └─ BASE_RUNID_TAG   = BASE_RELEASE_TAG-gha{run_id}-g{sha}             # 4.0-musl-gha12345-gabcdef
       #   RELEASE_TAG = BASE_RELEASE_TAG{tag_suffix}                            # 4.0-musl-gcc
@@ -141,10 +157,10 @@ jobs:
         run: |
           echo "SRC=src/engines/${{ inputs.engine }}/${{ inputs.version }}" >> $GITHUB_OUTPUT
           echo "IMAGE=${{ env.REGISTRY }}/${{ env.REPO }}/engines/${{ inputs.engine }}" >> $GITHUB_OUTPUT
-          echo "DOCKERFILE=src/engines/${{ inputs.engine }}/${{ inputs.version }}/Dockerfile.${{ inputs.libc }}${{ inputs.dockerfile_suffix }}" >> $GITHUB_OUTPUT
+          echo "DOCKERFILE=src/engines/${{ inputs.engine }}/${{ inputs.version }}/Dockerfile.${{ inputs.variant || inputs.libc }}${{ inputs.dockerfile_suffix }}" >> $GITHUB_OUTPUT
 
           # Base tags (without tag_suffix, for cache keys and --build-context)
-          BASE_RELEASE_TAG="${{ inputs.version }}-${{ inputs.libc }}"
+          BASE_RELEASE_TAG="${{ inputs.version }}-${{ inputs.variant || inputs.libc }}"
           BASE_COMMIT_TAG="${BASE_RELEASE_TAG}-g${{ github.sha }}"
           BASE_RUNID_TAG="${BASE_RELEASE_TAG}-gha${{ github.run_id }}-g${{ github.sha }}"
           echo "BASE_RELEASE_TAG=${BASE_RELEASE_TAG}" >> $GITHUB_OUTPUT
@@ -224,16 +240,23 @@ jobs:
 
       - name: Test image
         run: |
+          test_options=()
+          if [ "${{ inputs.sanitizer }}" = address ]; then
+            # LeakSanitizer inspects other threads with ptrace.
+            test_options+=(--cap-add=SYS_PTRACE)
+          fi
           docker run --rm ${{ steps.vars.outputs.IMAGE }}:test /bin/sh -c 'true'
           docker run --rm ${{ steps.vars.outputs.IMAGE }}:test ruby -e 'puts RUBY_DESCRIPTION'
           docker run --rm ${{ steps.vars.outputs.IMAGE }}:test gem --version
           docker run --rm ${{ steps.vars.outputs.IMAGE }}:test bundle --version
           docker run --rm \
+            "${test_options[@]}" \
             -v "${PWD}":"${PWD}" -w "${PWD}" \
             -e BUNDLE_GEMFILE=gemfiles/${{ inputs.engine }}-${{ inputs.version }}.gemfile \
             -e IMAGE_ENGINE=${{ inputs.engine }} \
             -e IMAGE_LIBC=${{ inputs.libc }} \
-            -e IMAGE_COMPILER=${{ inputs.dockerfile_suffix }} \
+            -e IMAGE_COMPILER=${{ inputs.compiler || inputs.dockerfile_suffix }} \
+            -e IMAGE_SANITIZER=${{ inputs.sanitizer }} \
             ${{ steps.vars.outputs.IMAGE }}:test \
             /bin/sh -c 'bundle config set without "check ide" && bundle config set with "test" && bundle install && bundle exec rake test'
           # Smoke-test C extensions to prove their shared library deps are present
@@ -271,7 +294,7 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       packages: write
-    name: Join (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.libc }}${{ inputs.tag_suffix }}) [${{ join(fromJSON(inputs.arch), ', ') }}]
+    name: Join (${{ inputs.engine }}:${{ inputs.version }}-${{ inputs.variant || inputs.libc }}${{ inputs.tag_suffix }}) [${{ join(fromJSON(inputs.arch), ', ') }}]
     steps:
       - name: Set up Docker
         uses: crazy-max/ghaction-setup-docker@7ec28a010822b4626af4874f9448a4b05ac6f3e5 # v5.6.0
@@ -282,7 +305,7 @@ jobs:
         id: vars
         run: |
           echo "IMAGE=${{ env.REGISTRY }}/${{ env.REPO }}/engines/${{ inputs.engine }}" >> $GITHUB_OUTPUT
-          BASE_RELEASE_TAG="${{ inputs.version }}-${{ inputs.libc }}"
+          BASE_RELEASE_TAG="${{ inputs.version }}-${{ inputs.variant || inputs.libc }}"
           RELEASE_TAG="${BASE_RELEASE_TAG}${{ inputs.tag_suffix }}"
           COMMIT_TAG="${RELEASE_TAG}-g${{ github.sha }}"
           RUNID_TAG="${RELEASE_TAG}-gha${{ github.run_id }}-g${{ github.sha }}"

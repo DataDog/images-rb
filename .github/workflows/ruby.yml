@@ -13,7 +13,7 @@ on:
         default: false
 
 jobs:
-  # Stage 1: Build all base images (gnu, musl, centos)
+  # Stage 1: Build all base images (gnu, musl, centos, asan)
   base:
     uses: ./.github/workflows/build-ruby.yml
     with:

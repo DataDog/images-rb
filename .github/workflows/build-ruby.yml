@@ -88,6 +88,13 @@ jobs:
             libc: gnu
             arch: ["x86_64", "aarch64"]
           - engine: ruby
+            version: "3.4"
+            libc: gnu
+            variant: asan
+            compiler: ".clang"
+            sanitizer: address
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
             version: "3.5"
             libc: gnu
             arch: ["x86_64", "aarch64"]
@@ -277,12 +284,15 @@ jobs:
             version: "4.1"
             libc: centos
             arch: ["x86_64", "aarch64"]
-    name: ${{ matrix.engine }}:${{ matrix.version }}-${{ matrix.libc }}
+    name: ${{ matrix.engine }}:${{ matrix.version }}-${{ matrix.variant || matrix.libc }}
     uses: ./.github/workflows/_build-image.yml
     with:
       engine: ${{ matrix.engine }}
       version: ${{ matrix.version }}
       libc: ${{ matrix.libc }}
+      variant: ${{ matrix.variant || '' }}
+      compiler: ${{ matrix.compiler || '' }}
+      sanitizer: ${{ matrix.sanitizer || '' }}
       arch: ${{ toJSON(matrix.arch) }}
       push: ${{ inputs.push || false }}
       dockerfile_suffix: ${{ inputs.dockerfile_suffix || '' }}

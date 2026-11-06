@@ -1,6 +1,7 @@
 # ruby-version-min: 1.8.7
 
 require "minitest/autorun"
+require "rbconfig"
 require "tmpdir"
 
 class TestCompiler < Minitest::Test
@@ -25,7 +26,7 @@ class TestCompiler < Minitest::Test
     skip "legacy musl compiler selection is unchanged" if ENV["IMAGE_LIBC"] == "musl" && Gem::Version.new(RUBY_VERSION) < Gem::Version.new("2.5")
 
     compiler = (ENV["IMAGE_COMPILER"] == ".clang") ? "clang" : "gcc"
-    # Ruby's build configuration invokes gcc in every compiler variant.
+    # Some extension builds invoke gcc directly, including in Clang variants.
     output = `gcc --version 2>&1`
     assert($?.success?, output)
     assert_match(/#{compiler}/i, output)
@@ -67,7 +68,9 @@ class TestCompiler < Minitest::Test
         headers.each { |header| file << "#include <#{header}>\n" }
         file << "int main(void) { return 0; }\n"
       end
-      output = `gcc -c #{source} -o #{File.join(dir, "headers.o")} 2>&1`
+      # Include Ruby's configured search paths, including private ASan headers.
+      command = %w[CC CPPFLAGS CFLAGS].map { |key| RbConfig::CONFIG[key] }.join(" ")
+      output = `#{command} -c #{source} -o #{File.join(dir, "headers.o")} 2>&1`
 
       assert_predicate($?, :success?, output)
     end
