@@ -60,8 +60,8 @@ GEMRC
 ENV LANG="en_US.UTF-8"                                                                      \
     LANGUAGE="en_US:en"                                                                     \
     RUBY_MAJOR="4.0"                                                                        \
-    RUBY_VERSION="4.0.1"                                                                    \
-    RUBY_DOWNLOAD_SHA256="0531fe57dfdb56bf591620d2450642ea0e0964f3512a6ebee7dc9305de69395f"
+    RUBY_VERSION="4.0.9"                                                                    \
+    RUBY_DOWNLOAD_SHA256="a8057adb39f51ad6dc3106237504c93dd792bb515837b4fe7817ae21ed7e51f4"
 
 # - Compile Ruby with `--disable-shared`
 # - Update gem version
