@@ -1,7 +1,7 @@
 # strip-tags: gnu
 # append-tags: gcc
 
-FROM eclipse-temurin:11-jammy AS jruby-9.4.14.0-jre11
+FROM eclipse-temurin:11-jammy AS jruby-9.4.15.0-jre11
 
 # A few RUN actions in Dockerfiles are subject to uncontrollable outside
 # variability: an identical command would be the same from `docker build`'s
@@ -53,8 +53,8 @@ ENV LANGUAGE=en_US:en
 RUN ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime
 
 # Install JRuby, pinned for reproducibility
-ENV JRUBY_VERSION=9.4.14.0
-ENV JRUBY_SHA256=7ea2be8d0c5989714c795b4544492bf9941c9576e7a78f593a19c85567bc0452
+ENV JRUBY_VERSION=9.4.15.0
+ENV JRUBY_SHA256=c8b8c5a7a1581fdba3ba73f7c375f793f6528117b444cc6baf6fb29bbcf9696d
 RUN mkdir /opt/jruby \
     && curl -fSL https://repo1.maven.org/maven2/org/jruby/jruby-dist/${JRUBY_VERSION}/jruby-dist-${JRUBY_VERSION}-bin.tar.gz -o /tmp/jruby.tar.gz \
     && echo "$JRUBY_SHA256 /tmp/jruby.tar.gz" | sha256sum -c - \
