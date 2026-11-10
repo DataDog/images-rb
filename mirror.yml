@@ -1,0 +1,94 @@
+version: 1
+images:
+  public.ecr.aws/docker/library/alpine:3.23:
+    source: public.ecr.aws/docker/library/alpine:3.23
+    mirror: ghcr.io/datadog/images-rb/mirror/public.ecr.aws/docker/library/alpine
+    platforms: [linux/amd64, linux/arm64]
+  public.ecr.aws/docker/library/centos:centos7.9.2009:
+    source: public.ecr.aws/docker/library/centos:centos7.9.2009
+    mirror: ghcr.io/datadog/images-rb/mirror/public.ecr.aws/docker/library/centos
+    platforms: [linux/amd64, linux/arm64]
+  public.ecr.aws/docker/library/debian:11:
+    source: public.ecr.aws/docker/library/debian:11
+    mirror: ghcr.io/datadog/images-rb/mirror/public.ecr.aws/docker/library/debian
+    platforms: [linux/amd64, linux/arm64]
+  public.ecr.aws/docker/library/debian:12:
+    source: public.ecr.aws/docker/library/debian:12
+    mirror: ghcr.io/datadog/images-rb/mirror/public.ecr.aws/docker/library/debian
+    platforms: [linux/amd64, linux/arm64]
+  public.ecr.aws/docker/library/debian:13:
+    source: public.ecr.aws/docker/library/debian:13
+    mirror: ghcr.io/datadog/images-rb/mirror/public.ecr.aws/docker/library/debian
+    platforms: [linux/amd64, linux/arm64]
+  eclipse-temurin:8-jammy:
+    source: docker.io/library/eclipse-temurin:8-jammy
+    mirror: ghcr.io/datadog/images-rb/mirror/docker.io/library/eclipse-temurin
+    platforms: [linux/amd64, linux/arm64]
+  eclipse-temurin:11-jammy:
+    source: docker.io/library/eclipse-temurin:11-jammy
+    mirror: ghcr.io/datadog/images-rb/mirror/docker.io/library/eclipse-temurin
+    platforms: [linux/amd64, linux/arm64]
+  eclipse-temurin:22-jammy:
+    source: docker.io/library/eclipse-temurin:22-jammy
+    mirror: ghcr.io/datadog/images-rb/mirror/docker.io/library/eclipse-temurin
+    platforms: [linux/amd64, linux/arm64]
+  eclipse-temurin:22-jdk-alpine:
+    source: docker.io/library/eclipse-temurin:22-jdk-alpine
+    mirror: ghcr.io/datadog/images-rb/mirror/docker.io/library/eclipse-temurin
+    platforms: [linux/amd64, linux/arm64]
+  datadog/agent:
+    source: docker.io/datadog/agent:latest
+    mirror: ghcr.io/datadog/images-rb/mirror/docker.io/datadog/agent
+    platforms: [linux/amd64, linux/arm64]
+  ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.12.0:
+    source: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.12.0
+    mirror: ghcr.io/datadog/images-rb/mirror/ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent
+    platforms: [linux/amd64, linux/arm64]
+  elasticsearch:8.19.11:
+    source: docker.io/library/elasticsearch:8.19.11
+    mirror: ghcr.io/datadog/images-rb/mirror/docker.io/library/elasticsearch
+    platforms: [linux/amd64, linux/arm64]
+  memcached:1.5-alpine:
+    source: docker.io/library/memcached:1.5-alpine
+    mirror: ghcr.io/datadog/images-rb/mirror/docker.io/library/memcached
+    platforms: [linux/amd64, linux/arm64]
+  memcached:1.6-alpine:
+    source: docker.io/library/memcached:1.6-alpine
+    mirror: ghcr.io/datadog/images-rb/mirror/docker.io/library/memcached
+    platforms: [linux/amd64, linux/arm64]
+  mongo:3.6:
+    source: docker.io/library/mongo:3.6
+    mirror: ghcr.io/datadog/images-rb/mirror/docker.io/library/mongo
+    platforms: [linux/amd64, linux/arm64]
+  mongo:4.2:
+    source: docker.io/library/mongo:4.2
+    mirror: ghcr.io/datadog/images-rb/mirror/docker.io/library/mongo
+    platforms: [linux/amd64, linux/arm64]
+  mongo:4.4:
+    source: docker.io/library/mongo:4.4
+    mirror: ghcr.io/datadog/images-rb/mirror/docker.io/library/mongo
+    platforms: [linux/amd64, linux/arm64]
+  mysql:8.0:
+    source: docker.io/library/mysql:8.0
+    mirror: ghcr.io/datadog/images-rb/mirror/docker.io/library/mysql
+    platforms: [linux/amd64, linux/arm64]
+  opensearchproject/opensearch:2.8.0:
+    source: docker.io/opensearchproject/opensearch:2.8.0
+    mirror: ghcr.io/datadog/images-rb/mirror/docker.io/opensearchproject/opensearch
+    platforms: [linux/amd64, linux/arm64]
+  postgres:9.6:
+    source: docker.io/library/postgres:9.6
+    mirror: ghcr.io/datadog/images-rb/mirror/docker.io/library/postgres
+    platforms: [linux/amd64, linux/arm64]
+  redis:6.2:
+    source: docker.io/library/redis:6.2
+    mirror: ghcr.io/datadog/images-rb/mirror/docker.io/library/redis
+    platforms: [linux/amd64, linux/arm64]
+  redis:8:
+    source: docker.io/library/redis:8
+    mirror: ghcr.io/datadog/images-rb/mirror/docker.io/library/redis
+    platforms: [linux/amd64, linux/arm64]
+  starburstdata/starburst-enterprise:482-e.7:
+    source: docker.io/starburstdata/starburst-enterprise:482-e.7
+    mirror: ghcr.io/datadog/images-rb/mirror/docker.io/starburstdata/starburst-enterprise
+    platforms: [linux/amd64, linux/arm64]
