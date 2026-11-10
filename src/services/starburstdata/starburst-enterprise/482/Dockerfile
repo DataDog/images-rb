@@ -1,4 +1,4 @@
-# append-tags: e.9
-FROM starburstdata/presto:332-e.9
+# append-tags: e.7
+FROM starburstdata/starburst-enterprise:482-e.7
 
 LABEL org.opencontainers.image.source=https://github.com/DataDog/images-rb
