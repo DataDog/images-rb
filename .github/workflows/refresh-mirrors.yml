@@ -1,0 +1,67 @@
+name: Refresh Mirrors
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: refresh-mirrors
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    env:
+      BUNDLE_WITHOUT: check:ide
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31.11.3
+      - run: nix develop -c bundle install
+      - run: nix develop -c bundle exec rake mirror:check mirror:test
+
+      - name: Check ECR authentication configuration
+        env:
+          ROLE_ARN: ${{ vars.AWS_ECR_PUBLIC_ROLE_ARN }}
+        run: |
+          test -n "$ROLE_ARN"
+          echo "REGISTRY_AUTH_FILE=$RUNNER_TEMP/mirror-auth.json" >> "$GITHUB_ENV"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6
+        with:
+          role-to-assume: ${{ vars.AWS_ECR_PUBLIC_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Log in to registries
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+          GHCR_USER: ${{ github.actor }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" |
+            nix develop -c skopeo login --username "$GHCR_USER" --password-stdin ghcr.io
+          aws ecr-public get-login-password --region us-east-1 |
+            nix develop -c skopeo login --username AWS --password-stdin public.ecr.aws
+
+      - name: Refresh and verify mirrors
+        run: nix develop -c bundle exec rake mirror:refresh
+
+      - name: Save candidate lock for review
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: mirror-lock-${{ github.sha }}
+          path: mirror.lock.yml
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove registry credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/mirror-auth.json"
