@@ -1,4 +1,3 @@
-# platforms: linux/x86_64
 # strip-tags: gnu
 
 # Debian 11 (bullseye)
@@ -82,6 +81,7 @@ apt-get install -y \
     g++ \
     make \
     autoconf \
+    autotools-dev \
     bison \
     patch \
     libc6-dev \
@@ -181,6 +181,8 @@ index 8e6d88f60609b3..29e28ca2f4420f 100644
              }
 PATCH
 
+# The bundled GNU configuration scripts predate AArch64.
+cp /usr/share/misc/config.guess /usr/share/misc/config.sub .
 autoconf
 
 # Ruby 1.8 detects signed overflow after multiplying; keep those checks intact.
@@ -259,7 +261,7 @@ bundle --version
 # -dev packages and apt has no way to know that Ruby needs them at runtime.
 compiler_packages="$(dpkg-query -W -f='${Package}\n' | grep -E '^(gcc|g\+\+|cpp)(-[0-9]+)?(-[a-z0-9-]+-linux-gnu)?$')"
 apt-get purge -y \
-    $compiler_packages make autoconf bison patch build-essential xz-utils \
+    $compiler_packages make autoconf autotools-dev bison patch build-essential xz-utils \
     libc6-dev zlib1g-dev libyaml-dev libgdbm-dev libreadline-dev \
     libncurses5-dev libncurses-dev libffi-dev libssl-dev
 SHELL
