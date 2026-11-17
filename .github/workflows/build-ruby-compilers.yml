@@ -105,11 +105,11 @@ jobs:
           - engine: ruby
             version: "2.1"
             libc: musl
-            arch: ["x86_64"]
+            arch: ["x86_64", "aarch64"]
           - engine: ruby
             version: "2.2"
             libc: musl
-            arch: ["x86_64"]
+            arch: ["x86_64", "aarch64"]
           - engine: ruby
             version: "2.3"
             libc: musl
