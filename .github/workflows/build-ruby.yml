@@ -208,15 +208,15 @@ jobs:
           - engine: ruby
             version: "1.8"
             libc: centos
-            arch: ["x86_64"]
+            arch: ["x86_64", "aarch64"]
           - engine: ruby
             version: "1.9"
             libc: centos
-            arch: ["x86_64"]
+            arch: ["x86_64", "aarch64"]
           - engine: ruby
             version: "2.0"
             libc: centos
-            arch: ["x86_64"]
+            arch: ["x86_64", "aarch64"]
           - engine: ruby
             version: "2.1"
             libc: centos
