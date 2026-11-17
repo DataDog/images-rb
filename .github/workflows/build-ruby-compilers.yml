@@ -103,6 +103,10 @@ jobs:
             arch: ["x86_64", "aarch64"]
           # musl
           - engine: ruby
+            version: "1.8"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
             version: "2.1"
             libc: musl
             arch: ["x86_64", "aarch64"]
