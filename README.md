@@ -28,6 +28,11 @@ Supported engines include:
 - `jruby`: These are based on Eclipse Temurin JDK builds.
 - `truffleruby`: Community Native builds. The `40.0` series targets Ruby 4.0 and provides glibc-based runtime, GCC, and Clang images for `x86_64` and `aarch64`.
 
+Historical CRuby 1.8, 1.9, and 2.0 have GNU, CentOS, and musl recipes for
+both architectures, including GCC and Clang variants. These preservation
+builds retain their runtime versions with targeted compiler and libc
+portability fixes.
+
 Tag naming acts as a contract and conveys intended usage:
 
 - If you expect a compiler, use `-gcc` or `-clang` tags; images without this do not guarantee presence of a compiler.

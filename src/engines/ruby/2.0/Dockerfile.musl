@@ -1,0 +1,187 @@
+FROM public.ecr.aws/docker/library/alpine:3.23
+
+# Bump the key to refresh package metadata independently of the source pins.
+ARG REPRO_RUN_KEY=0
+RUN true "${REPRO_RUN_KEY}" && apk update
+
+COPY <<GEMRC /usr/local/etc/gemrc
+install: --no-document
+update: --no-document
+GEMRC
+
+ENV LANG="en_US.UTF-8" \
+    LANGUAGE="en_US:en" \
+    RUBY_MAJOR="2.0" \
+    RUBY_VERSION="2.0.0-p648" \
+    RUBY_DOWNLOAD_SHA256="22fe97739110ba9171b13fc4dcd1a92e767f16769de3593ee41ef1283d218402"
+
+RUN <<SHELL
+set -eux
+apk add curl ca-certificates git
+apk add --virtual .ruby-builddeps \
+    build-base autoconf bison patch xz linux-headers \
+    zlib-dev yaml-dev gdbm-dev readline-dev ncurses-dev libffi-dev perl pax-utils
+
+# Ruby 2.0 requires OpenSSL 1.0.x.
+OPENSSL_VERSION='1.0.2u'
+OPENSSL_SHA256='ecd0c6ffb493dd06707d38b14bb4d8c2288bb7033735606569d8f90f89669d16'
+curl -L -o openssl.tar.gz "https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz"
+echo "$OPENSSL_SHA256 *openssl.tar.gz" | sha256sum -c -
+mkdir -p /usr/src/openssl
+tar -xzf openssl.tar.gz -C /usr/src/openssl --strip-components=1
+rm openssl.tar.gz
+cd /usr/src/openssl
+./config --prefix=/usr/local/ssl --openssldir=/usr/local/ssl shared zlib
+make -j "$(nproc)"
+make install
+echo "/lib:/usr/local/lib:/usr/lib:/usr/local/ssl/lib" > "/etc/ld-musl-$(uname -m).path"
+rmdir /usr/local/ssl/certs
+ln -s /etc/ssl/certs /usr/local/ssl/certs
+cd /
+rm -r /usr/src/openssl
+SHELL
+
+RUN <<SHELL
+set -eux
+curl -o ruby.tar.xz "https://cache.ruby-lang.org/pub/ruby/${RUBY_MAJOR}/ruby-$RUBY_VERSION.tar.xz"
+echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.xz" | sha256sum -c -
+mkdir -p /usr/src/ruby
+tar -xJf ruby.tar.xz -C /usr/src/ruby --strip-components=1
+rm ruby.tar.xz
+cd /usr/src/ruby
+
+# Suppress warnings about world-writable build directories.
+{ echo '#define ENABLE_PATH_CHECK 0'; cat file.c; } > file.c.new
+mv file.c.new file.c
+
+# The bundled GNU configuration scripts predate AArch64.
+cp /usr/share/autoconf/build-aux/config.guess /usr/share/autoconf/build-aux/config.sub tool/
+# Keep the release's configure script and pre-C23 compiler semantics.
+export CFLAGS='-g -O2 -std=gnu99 -Wno-error=implicit-function-declaration -Wno-error=incompatible-pointer-types'
+export LDFLAGS='-Wl,-z,relro,-z,now'
+# musl supplies these as macros; the old function-only probes miss them.
+export ac_cv_func_isnan=yes ac_cv_func_isinf=yes
+
+# Use the existing ioctl fallback when musl does not expose _IOC_SIZE.
+# https://github.com/ruby/ruby/commit/b945ad289f14c1b1ba65bdd9a4e1106f3cee134c
+patch -p1 <<'PATCH'
+--- a/io.c
++++ b/io.c
+@@ -8561,7 +8561,7 @@
+
+ #define DEFULT_IOCTL_NARG_LEN (256)
+
+-#ifdef __linux__
++#if defined(__linux__) && defined(_IOC_SIZE)
+ static long
+ linux_iocparm_len(ioctl_req_t cmd)
+ {
+@@ -8594,7 +8594,7 @@
+ #endif
+ #ifdef IOCPARM_LEN
+     len = IOCPARM_LEN(cmd);	/* on BSDish systems we're safe */
+-#elif defined(__linux__)
++#elif defined(__linux__) && defined(_IOC_SIZE)
+     len = linux_iocparm_len(cmd);
+ #else
+     /* otherwise guess at what's safe */
+PATCH
+
+# Backport the portable Linux main-stack lookup used by newer musl images.
+# https://bugs.ruby-lang.org/issues/14387 (Natanael Copa and Szabolcs Nagy)
+patch -p1 <<'PATCH'
+--- a/thread_pthread.c
++++ b/thread_pthread.c
+@@ -588,6 +588,55 @@
+     return 0;
+ #undef CHECK_ERR
+ }
++
++#if defined(__linux__) && !defined(__GLIBC__) && defined(HAVE_GETRLIMIT)
++
++#ifndef PAGE_SIZE
++#include <unistd.h>
++#define PAGE_SIZE sysconf(_SC_PAGE_SIZE)
++#endif
++
++static int
++get_main_stack(void **addr, size_t *size)
++{
++    size_t start, end, limit, prevend = 0;
++    struct rlimit r;
++    FILE *f;
++    char buf[PATH_MAX+80], s[8];
++    int n;
++    STACK_GROW_DIR_DETECTION;
++
++    f = fopen("/proc/self/maps", "re");
++    if (!f)
++        return -1;
++    n = 0;
++    while (fgets(buf, sizeof buf, f)) {
++        n = sscanf(buf, "%zx-%zx %*s %*s %*s %*s %7s", &start, &end, s);
++        if (n >= 2) {
++            if (n == 3 && strcmp(s, "[stack]") == 0)
++                break;
++            prevend = end;
++        }
++        n = 0;
++    }
++    fclose(f);
++    if (n == 0)
++        return -1;
++
++    limit = 100 << 20; /* 100MB stack limit */
++    if (getrlimit(RLIMIT_STACK, &r)==0 && r.rlim_cur < limit)
++        limit = r.rlim_cur & -PAGE_SIZE;
++    if (limit > end) limit = end;
++    if (prevend < end - limit) prevend = end - limit;
++    if (start > prevend) start = prevend;
++    *addr = STACK_DIR_UPPER((void *)start, (void *)end);
++    *size = end - start;
++    return 0;
++}
++#else
++# define get_main_stack(addr, size) get_stack(addr, size)
++#endif
++
+ #endif
+
+ static struct {
+@@ -664,1 +713,1 @@ ruby_init_stack
+-	if (get_stack(&stackaddr, &size) == 0) {
++	if (get_main_stack(&stackaddr, &size) == 0) {
+PATCH
+
+gnuArch="$(gcc -dumpmachine)"
+./configure --build="$gnuArch" --disable-install-doc --disable-shared --with-openssl-dir=/usr/local/ssl
+# Parallel make races in this release's extension build system.
+make
+make install
+cd /
+rm -r /usr/src/ruby
+if apk info -e ruby 2>/dev/null; then exit 1; fi
+gem update --system 2.7.11
+gem install bundler --version 1.17.3 --force
+
+# Keep packages providing the installed interpreter's shared libraries.
+runDeps="$( \
+    find /usr/local -type f \( -executable -o -name '*.so*' \) -exec scanelf --needed --nobanner --format '%n#p' '{}' ';' \
+        | tr ',' '\n' \
+        | sort -u \
+        | awk 'system("[ -e /usr/local/lib/" $1 " ] || [ -e /usr/local/ssl/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
+)"
+apk add --virtual .ruby-rundeps $runDeps
+apk del --no-network .ruby-builddeps
+ruby --version
+gem --version
+bundle --version
+SHELL
+
+ENV GEM_HOME=/usr/local/bundle
+ENV BUNDLE_SILENCE_ROOT_WARNING=1 \
+    BUNDLE_APP_CONFIG="$GEM_HOME"
+ENV PATH=$GEM_HOME/bin:$PATH
+RUN mkdir -p "$GEM_HOME" && chmod 1777 "$GEM_HOME"
+
+CMD [ "irb" ]

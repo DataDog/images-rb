@@ -129,6 +129,14 @@ jobs:
             libc: musl
             arch: ["x86_64", "aarch64"]
           - engine: ruby
+            version: "1.9"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.0"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
             version: "2.1"
             libc: musl
             arch: ["x86_64", "aarch64"]

@@ -4,7 +4,7 @@ require "minitest/autorun"
 
 class TestMusl < Minitest::Test
   def setup
-    skip "CRuby musl images only" unless RUBY_PLATFORM.include?("musl") && RUBY_VERSION >= "2.1"
+    skip "CRuby musl images with Open3.capture2e only" unless RUBY_PLATFORM.include?("musl") && RUBY_VERSION >= "1.9"
 
     require "open3"
     require "rbconfig"
@@ -15,16 +15,18 @@ class TestMusl < Minitest::Test
       require "openssl"
       require "psych"
       require "readline"
-      require "fiddle"
       require "zlib"
       require "io/console"
       require "gdbm" if RUBY_VERSION < "3.1"
 
       abort "YAML round trip failed" unless Psych.load(Psych.dump({"smoke" => true}))["smoke"]
       abort "compression round trip failed" unless Zlib::Inflate.inflate(Zlib::Deflate.deflate("smoke")) == "smoke"
-      callback = Fiddle::Closure::BlockCaller.new(Fiddle::TYPE_INT, [Fiddle::TYPE_INT]) { |n| n + 1 }
-      function = Fiddle::Function.new(callback, [Fiddle::TYPE_INT], Fiddle::TYPE_INT)
-      abort "libffi callback failed" unless function.call(41) == 42
+      if RUBY_VERSION >= "2.0"
+        require "fiddle"
+        callback = Fiddle::Closure::BlockCaller.new(Fiddle::TYPE_INT, [Fiddle::TYPE_INT]) { |n| n + 1 }
+        function = Fiddle::Function.new(callback, [Fiddle::TYPE_INT], Fiddle::TYPE_INT)
+        abort "libffi callback failed" unless function.call(41) == 42
+      end
 
       store = OpenSSL::X509::Store.new
       store.set_default_paths

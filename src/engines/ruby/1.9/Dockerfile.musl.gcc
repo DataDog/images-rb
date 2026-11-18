@@ -1,0 +1,3 @@
+FROM ghcr.io/datadog/images-rb/engines/ruby:1.9-musl
+
+RUN apk add binutils file fortify-headers make musl-dev gcc g++ libffi-dev openssl-dev yaml-dev zlib-dev
