@@ -36,8 +36,8 @@ GEMRC
 
 ENV LANG="en_US.UTF-8"                                                                      \
     RUBY_MAJOR="3.3"                                                                      \
-    RUBY_VERSION="3.3.13"                                                                 \
-    RUBY_DOWNLOAD_SHA256="6bd764359992373a96556b45fb7dfe6b6170da34a0a2fd0b7e1be7932fea982b"
+    RUBY_VERSION="3.3.14"                                                                 \
+    RUBY_DOWNLOAD_SHA256="e24ef6d97095a9c42bf8259a2de33a25aac8d92bb48fefdbdc81724b87784854"
 
 RUN <<SHELL
 set -eux
