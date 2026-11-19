@@ -1,4 +1,3 @@
-# platforms: linux/x86_64
 # strip-tags: gnu
 
 # Debian 11 (bullseye)
@@ -82,6 +81,7 @@ apt-get install -y \
     g++ \
     make \
     autoconf \
+    autotools-dev \
     bison \
     patch \
     libc6-dev \
@@ -148,6 +148,9 @@ cd /usr/src/ruby
 } > file.c.new
 mv file.c.new file.c
 
+# The bundled GNU configuration scripts predate AArch64.
+cp /usr/share/misc/config.guess /usr/share/misc/config.sub tool/
+
 # Backport Ruby 2.1's receiver-local library-directory lookup for extconf.rb.
 patch -p1 <<'PATCH'
 --- a/lib/mkmf.rb
@@ -202,7 +205,7 @@ bundle --version
 # -dev packages and apt has no way to know that Ruby needs them at runtime.
 compiler_packages="$(dpkg-query -W -f='${Package}\n' | grep -E '^(gcc|g\+\+|cpp)(-[0-9]+)?(-[a-z0-9-]+-linux-gnu)?$')"
 apt-get purge -y \
-    $compiler_packages make autoconf bison patch build-essential xz-utils \
+    $compiler_packages make autoconf autotools-dev bison patch build-essential xz-utils \
     libc6-dev zlib1g-dev libyaml-dev libgdbm-dev libreadline-dev \
     libncurses5-dev libncurses-dev libffi-dev libssl-dev
 SHELL

@@ -30,15 +30,15 @@ jobs:
           - engine: ruby
             version: "1.8"
             libc: gnu
-            arch: ["x86_64"]
+            arch: ["x86_64", "aarch64"]
           - engine: ruby
             version: "1.9"
             libc: gnu
-            arch: ["x86_64"]
+            arch: ["x86_64", "aarch64"]
           - engine: ruby
             version: "2.0"
             libc: gnu
-            arch: ["x86_64"]
+            arch: ["x86_64", "aarch64"]
           - engine: ruby
             version: "2.1"
             libc: gnu
@@ -125,13 +125,25 @@ jobs:
             arch: ["x86_64", "aarch64"]
           # musl
           - engine: ruby
+            version: "1.8"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "1.9"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
+            version: "2.0"
+            libc: musl
+            arch: ["x86_64", "aarch64"]
+          - engine: ruby
             version: "2.1"
             libc: musl
-            arch: ["x86_64"]
+            arch: ["x86_64", "aarch64"]
           - engine: ruby
             version: "2.2"
             libc: musl
-            arch: ["x86_64"]
+            arch: ["x86_64", "aarch64"]
           - engine: ruby
             version: "2.3"
             libc: musl
@@ -208,15 +220,15 @@ jobs:
           - engine: ruby
             version: "1.8"
             libc: centos
-            arch: ["x86_64"]
+            arch: ["x86_64", "aarch64"]
           - engine: ruby
             version: "1.9"
             libc: centos
-            arch: ["x86_64"]
+            arch: ["x86_64", "aarch64"]
           - engine: ruby
             version: "2.0"
             libc: centos
-            arch: ["x86_64"]
+            arch: ["x86_64", "aarch64"]
           - engine: ruby
             version: "2.1"
             libc: centos

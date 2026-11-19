@@ -1,0 +1,4 @@
+FROM ghcr.io/datadog/images-rb/engines/ruby:1.8-musl
+
+RUN apk add binutils file fortify-headers make musl-dev gcc clang libffi-dev openssl-dev yaml-dev zlib-dev && \
+    ln -s "$(command -v clang)" /usr/local/bin/gcc

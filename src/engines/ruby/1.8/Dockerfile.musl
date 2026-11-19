@@ -1,0 +1,172 @@
+FROM public.ecr.aws/docker/library/alpine:3.23
+
+# Bump the key to refresh package metadata independently of the source pins.
+ARG REPRO_RUN_KEY=0
+RUN true "${REPRO_RUN_KEY}" && apk update
+
+COPY <<GEMRC /usr/local/etc/gemrc
+install: --no-document
+update: --no-document
+GEMRC
+
+ENV LANG="en_US.UTF-8" \
+    LANGUAGE="en_US:en" \
+    RUBY_MAJOR="1.8" \
+    RUBY_VERSION="1.8.7-p376" \
+    RUBY_DOWNLOAD_SHA256="8dfe254590e77b82ceaffba29ad38d1cee7c4180ab50340fecdb76a6fa59330b"
+
+RUN <<SHELL
+set -eux
+apk add curl ca-certificates git
+apk add --virtual .ruby-builddeps \
+    build-base autoconf bison patch xz linux-headers \
+    zlib-dev yaml-dev gdbm-dev readline-dev ncurses-dev libffi-dev perl pax-utils
+
+# Ruby 1.8 requires OpenSSL 1.0.x.
+OPENSSL_VERSION='1.0.2u'
+OPENSSL_SHA256='ecd0c6ffb493dd06707d38b14bb4d8c2288bb7033735606569d8f90f89669d16'
+curl -L -o openssl.tar.gz "https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz"
+echo "$OPENSSL_SHA256 *openssl.tar.gz" | sha256sum -c -
+mkdir -p /usr/src/openssl
+tar -xzf openssl.tar.gz -C /usr/src/openssl --strip-components=1
+rm openssl.tar.gz
+cd /usr/src/openssl
+./config --prefix=/usr/local/ssl --openssldir=/usr/local/ssl shared zlib
+make -j "$(nproc)"
+make install
+echo "/lib:/usr/local/lib:/usr/lib:/usr/local/ssl/lib" > "/etc/ld-musl-$(uname -m).path"
+rmdir /usr/local/ssl/certs
+ln -s /etc/ssl/certs /usr/local/ssl/certs
+cd /
+rm -r /usr/src/openssl
+SHELL
+
+RUN <<SHELL
+set -eux
+curl -L -o ruby.tar.gz "https://github.com/ruby/ruby/archive/f48ae0d10c5b586db5748b0d4b645c7e9ff5d52e.tar.gz"
+echo "$RUBY_DOWNLOAD_SHA256 *ruby.tar.gz" | sha256sum -c -
+mkdir -p /usr/src/ruby
+tar -xzf ruby.tar.gz -C /usr/src/ruby --strip-components=1
+rm ruby.tar.gz
+cd /usr/src/ruby
+
+# Suppress warnings about world-writable build directories.
+{ echo '#define ENABLE_PATH_CHECK 0'; cat file.c; } > file.c.new
+mv file.c.new file.c
+
+# OpenSSL may omit binary-field elliptic curves.
+# https://github.com/ruby/ruby/commit/f895841e2c2861f8d3ea2247817d6ffd35dff71c
+patch -p1 <<'PATCH'
+--- a/ext/openssl/ossl_pkey_ec.c
++++ b/ext/openssl/ossl_pkey_ec.c
+@@ -762,8 +762,10 @@ static VALUE ossl_ec_group_initialize(int argc, VALUE *argv, VALUE self)
+                 method = EC_GFp_mont_method();
+             } else if (id == s_GFp_nist) {
+                 method = EC_GFp_nist_method();
++#if !defined(OPENSSL_NO_EC2M)
+             } else if (id == s_GF2m_simple) {
+                 method = EC_GF2m_simple_method();
++#endif
+             }
+
+             if (method) {
+@@ -817,8 +819,10 @@ static VALUE ossl_ec_group_initialize(int argc, VALUE *argv, VALUE self)
+
+             if (id == s_GFp) {
+                 new_curve = EC_GROUP_new_curve_GFp;
++#if !defined(OPENSSL_NO_EC2M)
+             } else if (id == s_GF2m) {
+                 new_curve = EC_GROUP_new_curve_GF2m;
++#endif
+             } else {
+                 ossl_raise(rb_eArgError, "unknown symbol, must be :GFp or :GF2m");
+             }
+PATCH
+
+# musl hides FILE internals. The old fallback treats every live stream as
+# buffered, making IO.select report false readiness and Socket#recv raise.
+patch -p1 <<'PATCH'
+--- a/io.c
++++ b/io.c
+@@ -189,10 +189,9 @@
+ #  define READ_DATA_PENDING(fp) (((struct __FILE_public *)(fp))->_r > 0)
+ #  define READ_DATA_PENDING_COUNT(fp) (((struct __FILE_public *)(fp))->_r)
+ #else
+-/* requires systems own version of the ReadDataPending() */
+-extern int ReadDataPending();
+-#  define READ_DATA_PENDING(fp) (!feof(fp))
+-#  define READ_DATA_BUFFERED(fp) 0
++#  include <stdio_ext.h>
++#  define READ_DATA_PENDING(fp) (__freadahead(fp) > 0)
++#  define READ_DATA_PENDING_COUNT(fp) __freadahead(fp)
+ #endif
+ #ifndef READ_DATA_BUFFERED
+ #  define READ_DATA_BUFFERED(fp) READ_DATA_PENDING(fp)
+PATCH
+
+# The bundled GNU configuration scripts predate AArch64.
+cp /usr/share/autoconf/build-aux/config.guess /usr/share/autoconf/build-aux/config.sub .
+autoconf
+# Keep pre-C23 declarations and Ruby 1.8's signed-overflow checks intact.
+export CFLAGS='-g -O2 -std=gnu99 -Wno-error=implicit-function-declaration -Wno-error=incompatible-pointer-types -fwrapv -Wno-error=implicit-int'
+export LDFLAGS='-Wl,-z,relro,-z,now'
+gnuArch="$(gcc -dumpmachine)"
+./configure --build="$gnuArch" --disable-install-doc --disable-shared --with-openssl-dir=/usr/local/ssl
+# Parallel make races in this release's extension build system.
+make
+make install
+cd /
+rm -r /usr/src/ruby
+if apk info -e ruby 2>/dev/null; then exit 1; fi
+
+# Ruby 1.8 predates bundled RubyGems.
+curl -o rubygems.tar.gz "https://rubygems.org/rubygems/rubygems-1.6.2.tgz"
+echo "cb5261818b931b5ea2cb54bc1d583c47823543fcf9682f0d6298849091c1cea7 *rubygems.tar.gz" | sha256sum -c -
+mkdir -p /usr/src/rubygems
+tar -xzf rubygems.tar.gz -C /usr/src/rubygems --strip-components=1
+rm rubygems.tar.gz
+cd /usr/src/rubygems
+ruby setup.rb
+cd /
+rm -r /usr/src/rubygems
+gem update --system 2.7.11
+gem install bundler --version 1.17.3 --force
+
+# Match the other 1.8 images' RubyGems deprecation suppression.
+for dir in /usr/local/lib/ruby/gems/1.8/gems/rubygems-update-2.7.11/lib /usr/local/lib/ruby/site_ruby/1.8; do
+    patch -d "$dir" -p1 <<'PATCH'
+--- a/rubygems/deprecate.rb
++++ b/rubygems/deprecate.rb
+@@ -24,7 +24,7 @@
+ module Gem::Deprecate
+
+   def self.skip # :nodoc:
+-    @skip ||= false
++    @skip ||= true
+   end
+
+   def self.skip= v # :nodoc:
+PATCH
+done
+
+# Keep packages providing the installed interpreter's shared libraries.
+runDeps="$( \
+    find /usr/local -type f \( -executable -o -name '*.so*' \) -exec scanelf --needed --nobanner --format '%n#p' '{}' ';' \
+        | tr ',' '\n' \
+        | sort -u \
+        | awk 'system("[ -e /usr/local/lib/" $1 " ] || [ -e /usr/local/ssl/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
+)"
+apk add --virtual .ruby-rundeps $runDeps
+apk del --no-network .ruby-builddeps
+ruby --version
+gem --version
+bundle --version
+SHELL
+
+ENV GEM_HOME=/usr/local/bundle
+ENV BUNDLE_SILENCE_ROOT_WARNING=1 \
+    BUNDLE_APP_CONFIG="$GEM_HOME"
+ENV PATH=$GEM_HOME/bin:$PATH
+RUN mkdir -p "$GEM_HOME" && chmod 1777 "$GEM_HOME"
+
+CMD [ "irb" ]
