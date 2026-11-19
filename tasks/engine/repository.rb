@@ -106,13 +106,14 @@ module EngineUpdates
               basename.split(".")[1]
             end
           end.uniq.sort
-          actual = targets.map { |entry| entry.fetch("libc") }.sort
+          actual = targets.map { |entry| entry["variant"] || entry.fetch("libc") }.sort
           raise Error, "Matrix does not match #{series.engine} #{series.name}: #{path}" unless actual == expected
 
           targets.each do |entry|
             raise Error, "Empty architecture list in #{path}" unless entry["arch"].is_a?(Array) && !entry["arch"].empty?
             suffixes = (path == MATRICES.first) ? [""] : [".gcc", ".clang"]
-            suffixes.each { |suffix| read("src/engines/#{series.engine}/#{series.name}/Dockerfile.#{entry.fetch("libc")}#{suffix}") }
+            variant = entry["variant"] || entry.fetch("libc")
+            suffixes.each { |suffix| read("src/engines/#{series.engine}/#{series.name}/Dockerfile.#{variant}#{suffix}") }
           end
         end
       end
