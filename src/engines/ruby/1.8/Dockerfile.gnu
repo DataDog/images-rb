@@ -183,6 +183,9 @@ PATCH
 
 autoconf
 
+# Ruby 1.8 detects signed overflow after multiplying; keep those checks intact.
+export CFLAGS='-g -O2 -fwrapv'
+
 gnuArch="$(gcc -dumpmachine)"
 ./configure \
     --build="$gnuArch" \
