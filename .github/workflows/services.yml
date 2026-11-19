@@ -38,7 +38,7 @@ jobs:
             arch: ["x86_64", "aarch64"]
           - service: redis
             arch: ["x86_64", "aarch64"]
-          - service: starburstdata/presto
+          - service: starburstdata/starburst-enterprise
             arch: ["x86_64", "aarch64"]
     runs-on: ubuntu-24.04
     permissions:

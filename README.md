@@ -48,6 +48,9 @@ Directory: `src/services`
 
 Service images are intended to provide known, fixed behaviour for test suites.
 
+The [Starburst service](docs/starburst.md) uses the multiarch 482 LTS image.
+Its new image path is an explicit upgrade from the legacy Presto 332 service.
+
 ## Updating engine releases
 
 Run the updater with Ruby 3.3 or newer and the repository's bundle, or through
