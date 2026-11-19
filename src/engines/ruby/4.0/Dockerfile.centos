@@ -188,6 +188,11 @@ make install
 echo "/usr/local/ssl/lib" > /etc/ld.so.conf.d/openssl.conf
 ldconfig
 
+# Keep custom OpenSSL on the distribution's managed CA trust store.
+rmdir /usr/local/ssl/certs
+ln -s /etc/pki/tls/certs /usr/local/ssl/certs
+ln -s /etc/pki/tls/certs/ca-bundle.crt /usr/local/ssl/cert.pem
+
 cd /
 rm -r /usr/src/openssl
 
