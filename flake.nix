@@ -27,6 +27,7 @@
           buildInputs = with pkgs; [
             ruby
             libyaml.dev
+            skopeo
 
             # TODO: some gems insist on using `gcc` on Linux, satisfy them for now:
             # - json
