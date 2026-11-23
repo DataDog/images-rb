@@ -190,6 +190,41 @@ class EngineUpdatesTest < Minitest::Test
     assert_empty prepare("ruby", [release("3.5.0-preview1"), release("4.0.0")]).edits
   end
 
+  def test_asan_updates_and_copies_with_explicit_variant
+    seed("ruby", "3.4.7", ["gnu"])
+    write("src/engines/ruby/3.4/Dockerfile.asan", "# append-tags: clang\n" + fixture("ruby.Dockerfile"))
+    path = Repository::MATRICES.first
+    write(path, read(path) + <<~YAML.lines.map { |line| "          #{line}" }.join)
+      - engine: ruby
+        version: "3.4"
+        libc: gnu
+        variant: asan
+        compiler: ".clang"
+        sanitizer: address
+        arch: ["x86_64", "aarch64"]
+    YAML
+
+    prepare("ruby", [release("3.4.8"), release("3.5.0")]).apply
+
+    {"3.4" => "3.4.8", "3.5" => "3.5.0"}.each do |series, version|
+      text = read("src/engines/ruby/#{series}/Dockerfile.asan")
+
+      assert_includes text, "RUBY_VERSION=\"#{version}\""
+      assert_includes text, "a" * 64
+      assert_includes text, "# append-tags: clang"
+
+      entries = YAML.safe_load(read(path)).fetch("jobs").fetch("build").fetch("strategy").fetch("matrix").fetch("include")
+      entry = entries.find { |item| item["version"] == series && item["variant"] == "asan" }
+
+      assert_equal "gnu", entry.fetch("libc")
+      assert_equal ".clang", entry.fetch("compiler")
+      assert_equal "address", entry.fetch("sanitizer")
+      refute_path_exists File.join(@root, "src/engines/ruby/#{series}/Dockerfile.asan.clang")
+    end
+    refute_includes read(Repository::MATRICES.last), "asan"
+    assert_empty prepare("ruby", [release("3.4.8"), release("3.5.0")]).edits
+  end
+
   def test_jruby_preserves_gnu_compiler_alias_and_rewrites_stage_names
     seed("jruby", "10.0.2.0", %w[gnu musl])
     prepare("jruby", [release("10.1.2.0", format: "tar.gz")]).apply
